@@ -3,16 +3,8 @@ package com.secureguard.mdm.features.registry
 import com.secureguard.mdm.features.api.ProtectionFeature
 import com.secureguard.mdm.features.impl.*
 
-/**
- * אובייקט סינגלטון המשמש כמרשם מרכזי לכל חסימות ההגנה באפליקציה.
- * המטרה היא לרכז את כל החסימות הזמינות במקום אחד.
- */
 object FeatureRegistry {
 
-    /**
-     * רשימה קבועה של כל מופעי החסימות.
-     * כדי להוסיף חסימה חדשה לאפליקציה, יש להוסיף אותה לרשימה זו.
-     */
     val allFeatures: List<ProtectionFeature> = listOf(
         BlockDeveloperOptionsFeature,
         BlockBluetoothFeature,
@@ -58,6 +50,7 @@ object FeatureRegistry {
         BlockPasswordChangeFeature,
         BlockVpnSettingsFeature,
         InstallAndProtectNetGuardFeature,
-        ForceNetGuardVpnFeature
+        ForceNetGuardVpnFeature,
+        NetfreeOnlyModeFeature // --- הוספה ---
     )
 }

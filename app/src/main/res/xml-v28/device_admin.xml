@@ -22,5 +22,11 @@
         <disable-screen-capture />
         <!-- Policy for blocking the lock screen -->
         <disable-keyguard-features />
+
+
+
+
     </uses-policies>
+    <!-- Support for receiving ownership transfer -->
+    <support-transfer-ownership />
 </device-admin>

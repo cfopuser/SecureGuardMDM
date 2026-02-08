@@ -29,28 +29,28 @@ fun AppInfoDialog(
     val context = LocalContext.current
     var showUnofficialWarning by remember { mutableStateOf(false) }
 
-    val isOfficial = buildStatus.equals("רשמית", ignoreCase = true)
+    val isOfficial = buildStatus.equals(stringResource(id = R.string.app_build_status), ignoreCase = true)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(id = R.string.app_name)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                InfoRow("גרסה:", appVersion)
+                InfoRow(stringResource(id = R.string.app_info_version), appVersion)
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    InfoRow("סטטוס:", buildStatus, if (isOfficial) Color(0xFF388E3C) else MaterialTheme.colorScheme.error)
+                    InfoRow(stringResource(id = R.string.app_info_status), buildStatus, if (isOfficial) Color(0xFF388E3C) else MaterialTheme.colorScheme.error)
                     if (!isOfficial) {
                         IconButton(onClick = { showUnofficialWarning = true }, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Warning, contentDescription = "אזהרה", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Warning, contentDescription = stringResource(id = R.string.unofficial_warning_title), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
 
                 HorizontalDivider()
-                InfoRow("יוצר:", "יוסי פוליטנסקי")
-                InfoRow("במתמחים טופ:", "@iosi-poli")
-                InfoRow("ליצירת קשר:", stringResource(id = R.string.contact_email))
+                InfoRow(stringResource(id = R.string.app_info_author), stringResource(id = R.string.app_info_author_name))
+                InfoRow(stringResource(id = R.string.app_info_forum_user), stringResource(id = R.string.app_info_forum_user_name))
+                InfoRow(stringResource(id = R.string.app_info_contact_us), stringResource(id = R.string.contact_email))
             }
         },
         confirmButton = {
@@ -68,14 +68,14 @@ fun AppInfoDialog(
                         sendEmail(context)
                         onDismiss()
                     }) {
-                        Text("צור קשר במייל")
+                        Text(stringResource(id = R.string.app_info_button_contact_email))
                     }
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("סגור")
+                Text(stringResource(id = R.string.app_info_button_close))
             }
         }
     )

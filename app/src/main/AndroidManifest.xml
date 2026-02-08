@@ -3,10 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.BIND_VPN_SERVICE"
-        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.BIND_VPN_SERVICE" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <!-- Permissions that only exist on newer APIs will be ignored on older ones -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" tools:targetApi="O"/>
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:targetApi="R"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -15,11 +13,15 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" tools:targetApi="UPSIDE_DOWN_CAKE"/>
     <uses-permission android:name="android.permission.CAMERA"/>
-    <!-- הוספת ההרשאה החסרה לשינוי הגדרות מערכת (כמו סיבוב מסך) -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.RECEIVE_DEVICE_OWNER_OWNERSHIP" />
+    <uses-permission android:name="android.permission.MANAGE_PROFILE_AND_DEVICE_OWNERS"/>
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <uses-feature android:name="android.hardware.camera.flash" android:required="false"/>
-
 
     <application
         android:name=".SecureGuardApplication"
@@ -32,7 +34,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SecureGuard"
         android:directBootAware="true"
-        tools:targetApi="34">
+        tools:targetApi="34"
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <activity
             android:name=".MainActivity"
@@ -48,20 +51,29 @@
 
         <activity
             android:name=".kiosk.ui.KioskActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@style/Theme.SecureGuard.Kiosk"
             android:windowSoftInputMode="adjustResize"
             android:launchMode="singleTask"
             android:excludeFromRecents="true"
-            android:resizeableActivity="true">
-            <!-- This intent filter declares KioskActivity as a potential Home screen -->
+            android:resizeableActivity="true"
+            android:lockTaskMode="if_whitelisted">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.HOME"/>
                 <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="http"/>
+                <data android:scheme="https"/>
+                <data android:scheme="file"/>
+                <data android:scheme="content"/>
+                <data android:mimeType="*/*"/>
+            </intent-filter>
         </activity>
-
 
         <receiver
             android:name=".SecureGuardDeviceAdminReceiver"
@@ -73,10 +85,10 @@
                 android:resource="@xml/device_admin" />
             <intent-filter>
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.TRANSFER_OWNERSHIP_COMPLETE" />
             </intent-filter>
         </receiver>
 
-        <!-- Receiver is now disabled by default and enabled programmatically on setup -->
         <receiver
             android:name=".boot.BootCompletedReceiver"
             android:directBootAware="true"
@@ -88,7 +100,6 @@
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
-
 
         <receiver
             android:name=".receivers.InstallReceiver"
@@ -106,11 +117,25 @@
         <service
             android:name=".services.BlockerVpnService"
             android:exported="false"
-            android:permission="android.permission.BIND_VPN_SERVICE">
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:foregroundServiceType="specialUse"
+            tools:targetApi="upside_down_cake">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_CATEGORY"
+                android:value="vpn_management" />
         </service>
+
+        <service
+            android:name=".services.NetfreeMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name=".services.ServiceWatchdogJob"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <service
             android:name=".MainService"

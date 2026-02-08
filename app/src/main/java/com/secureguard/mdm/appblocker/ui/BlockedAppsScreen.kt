@@ -8,7 +8,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,6 +33,7 @@ fun BlockedAppsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddPackageDialog by remember { mutableStateOf(false) }
+    var showActionChoiceDialog by remember { mutableStateOf<AppInfo?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -52,9 +55,16 @@ fun BlockedAppsScreen(
             )
         },
         floatingActionButton = {
-            if (uiState.selectionForUnblock.isNotEmpty()) {
-                FloatingActionButton(onClick = { viewModel.onEvent(AppBlockerEvent.OnUnblockSelectedRequest) }) {
-                    Icon(Icons.Default.LockOpen, contentDescription = "שחרר חסימה")
+            when {
+                uiState.selectionForUnblock.isNotEmpty() -> {
+                    FloatingActionButton(onClick = { viewModel.onEvent(AppBlockerEvent.OnUnblockSelectedRequest) }) {
+                        Icon(Icons.Default.LockOpen, contentDescription = "שחרר חסימה")
+                    }
+                }
+                uiState.selectionForUnsuspend.isNotEmpty() -> {
+                    FloatingActionButton(onClick = { viewModel.onEvent(AppBlockerEvent.OnUnsuspendSelectedRequest) }) {
+                        Icon(Icons.Default.PauseCircle, contentDescription = "שחרר השבתה")
+                    }
                 }
             }
         }
@@ -71,16 +81,17 @@ fun BlockedAppsScreen(
 
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 val blockedApps = uiState.displayedBlockedApps
+                val suspendedApps = uiState.displayedSuspendedApps
                 if (uiState.isLoading) {
                     CircularProgressIndicator()
-                } else if (blockedApps.isEmpty() && uiState.searchQuery.isBlank()) {
+                } else if (blockedApps.isEmpty() && suspendedApps.isEmpty() && uiState.searchQuery.isBlank()) {
                     Text(
                         text = "לא הוגדרו אפליקציות לחסימה.",
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
-                } else if (blockedApps.isEmpty() && uiState.searchQuery.isNotBlank()) {
+                } else if (blockedApps.isEmpty() && suspendedApps.isEmpty() && uiState.searchQuery.isNotBlank()) {
                     Text(
                         text = "לא נמצאו אפליקציות חסומות התואמות לחיפוש.",
                         style = MaterialTheme.typography.bodyLarge,
@@ -90,13 +101,41 @@ fun BlockedAppsScreen(
                 }
                 else {
                     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
-                        items(items = blockedApps, key = { it.packageName }) { appInfo ->
-                            BlockedAppRow(
-                                appInfo = appInfo,
-                                isSelected = uiState.selectionForUnblock.contains(appInfo.packageName),
-                                onToggleSelection = { viewModel.onEvent(AppBlockerEvent.OnToggleUnblockSelection(appInfo.packageName)) }
-                            )
-                            HorizontalDivider()
+                        if (blockedApps.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "חסומות",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(items = blockedApps, key = { it.packageName }) { appInfo ->
+                                BlockedAppRow(
+                                    appInfo = appInfo,
+                                    isSelected = uiState.selectionForUnblock.contains(appInfo.packageName),
+                                    onToggleSelection = { viewModel.onEvent(AppBlockerEvent.OnToggleUnblockSelection(appInfo.packageName)) },
+                                    onActionClick = { showActionChoiceDialog = appInfo }
+                                )
+                                HorizontalDivider()
+                            }
+                        }
+                        if (suspendedApps.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "מושבתות",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(items = suspendedApps, key = { it.packageName }) { appInfo ->
+                                BlockedAppRow(
+                                    appInfo = appInfo,
+                                    isSelected = uiState.selectionForUnsuspend.contains(appInfo.packageName),
+                                    onToggleSelection = { viewModel.onEvent(AppBlockerEvent.OnToggleUnsuspendSelection(appInfo.packageName)) },
+                                    onActionClick = { showActionChoiceDialog = appInfo }
+                                )
+                                HorizontalDivider()
+                            }
                         }
                     }
                 }
@@ -115,6 +154,23 @@ fun BlockedAppsScreen(
                 } else {
                     coroutineScope.launch { snackbarHostState.showSnackbar(error) }
                 }
+            }
+        )
+    }
+
+    showActionChoiceDialog?.let { appInfo ->
+        AppActionChoiceDialog(
+            appInfo = appInfo,
+            onDismiss = { showActionChoiceDialog = null },
+            onChooseBlock = {
+                showActionChoiceDialog = null
+                viewModel.onEvent(AppBlockerEvent.OnAppSelectionChanged(appInfo.packageName, true))
+                viewModel.onEvent(AppBlockerEvent.OnSaveRequest)
+            },
+            onChooseSuspend = {
+                showActionChoiceDialog = null
+                viewModel.onEvent(AppBlockerEvent.OnAppSuspensionChanged(appInfo.packageName, true))
+                viewModel.onEvent(AppBlockerEvent.OnSaveRequest)
             }
         )
     }
@@ -146,7 +202,8 @@ private fun AddPackageDialogBlockedScreen(
 private fun BlockedAppRow(
     appInfo: AppInfo,
     isSelected: Boolean,
-    onToggleSelection: () -> Unit
+    onToggleSelection: () -> Unit,
+    onActionClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onToggleSelection).padding(horizontal = 16.dp, vertical = 8.dp),
@@ -165,6 +222,45 @@ private fun BlockedAppRow(
                 )
             }
         }
+        IconButton(onClick = onActionClick) {
+            Icon(Icons.Default.Block, contentDescription = "בחר פעולה")
+        }
         Checkbox(checked = isSelected, onCheckedChange = { onToggleSelection() })
     }
+}
+
+@Composable
+private fun AppActionChoiceDialog(
+    appInfo: AppInfo,
+    onDismiss: () -> Unit,
+    onChooseBlock: () -> Unit,
+    onChooseSuspend: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("פעולה עבור ${appInfo.appName}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("בחר מה לבצע עבור האפליקציה")
+                Button(
+                    onClick = onChooseBlock,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("חסימה")
+                }
+                OutlinedButton(
+                    onClick = onChooseSuspend,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("השבתה")
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("ביטול")
+            }
+        }
+    )
 }

@@ -33,7 +33,7 @@ object BlockIncomingCallsFeature : ProtectionFeature {
     override val iconRes: Int = R.drawable.ic_incoming_call_off
     override val requiredSdkVersion: Int = Build.VERSION_CODES.M // Feature requires API 23+
 
-    private const val NO_PHONE_PACKAGE_NAME = "org.fossify.phone"
+    private const val NO_PHONE_PACKAGE_NAME = "org.fossify.phone.debug"
     private const val NO_PHONE_ASSET_NAME = "nophone.apk"
     private const val TAG = "IncomingCallsFeature"
 

@@ -3,19 +3,17 @@ package com.secureguard.mdm.di
 import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.ConnectivityManager
 import androidx.room.Room
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.secureguard.mdm.boot.impl.NetfreeWatchdogBootTask
 import com.secureguard.mdm.boot.impl.ShowToastOnBootTask
 import com.secureguard.mdm.data.db.AppDatabase
 import com.secureguard.mdm.data.db.BlockedAppCacheDao
+import com.secureguard.mdm.data.local.PreferencesManager
 import com.secureguard.mdm.data.repository.SettingsRepository
 import com.secureguard.mdm.data.repository.SettingsRepositoryImpl
-import com.secureguard.mdm.kiosk.manager.KioskManager
-import com.secureguard.mdm.kiosk.model.KioskApp
-import com.secureguard.mdm.kiosk.model.KioskFolder
-import com.secureguard.mdm.kiosk.model.KioskItem
-import com.secureguard.mdm.utils.RuntimeTypeAdapterFactory
 import com.secureguard.mdm.utils.SecureUpdateHelper
 import com.secureguard.mdm.utils.update.UpdateManager
 import dagger.Module
@@ -29,22 +27,16 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    /**
-     * מספק מופע יחיד של מסד הנתונים Room לכל האפליקציה.
-     */
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            "secure_guard_database" // שם קובץ מסד הנתונים
+            "secure_guard_database"
         ).build()
     }
 
-    /**
-     * מספק מופע יחיד של ה-DAO לאפליקציות חסומות, מתוך מסד הנתונים.
-     */
     @Provides
     @Singleton
     fun provideBlockedAppCacheDao(appDatabase: AppDatabase): BlockedAppCacheDao {
@@ -59,8 +51,20 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun providePreferencesManager(sharedPreferences: SharedPreferences): PreferencesManager {
+        return PreferencesManager(sharedPreferences)
+    }
+
+    @Provides
+    @Singleton
     fun provideDevicePolicyManager(@ApplicationContext context: Context): DevicePolicyManager {
         return context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    }
+
+    @Provides
+    @Singleton
+    fun provideConnectivityManager(@ApplicationContext context: Context): ConnectivityManager {
+        return context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     }
 
     @Provides
@@ -77,15 +81,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideUpdateManager(@ApplicationContext context: Context, secureUpdateHelper: SecureUpdateHelper): UpdateManager {
-        return UpdateManager(context, secureUpdateHelper)
+    fun provideUpdateManager(@ApplicationContext context: Context, secureUpdateHelper: SecureUpdateHelper, preferencesManager: PreferencesManager): UpdateManager {
+        return UpdateManager(context, secureUpdateHelper, preferencesManager)
     }
 
-    /**
-     * Provides the ShowToastOnBootTask as a regular dependency.
-     * The BootTaskRegistry will require this in its constructor.
-     * We no longer use @IntoSet.
-     */
     @Provides
     @Singleton
     fun provideShowToastOnBootTask(
@@ -97,23 +96,16 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideKioskManager(
-        @ApplicationContext context: Context,
-        dpm: DevicePolicyManager
-    ): KioskManager {
-        return KioskManager(context, dpm)
+    fun provideNetfreeWatchdogBootTask(
+        @ApplicationContext context: Context
+    ): NetfreeWatchdogBootTask {
+        return NetfreeWatchdogBootTask(context)
     }
 
     @Provides
     @Singleton
     fun provideGson(): Gson {
-        val typeFactory = RuntimeTypeAdapterFactory
-            .of(KioskItem::class.java, "type")
-            .registerSubtype(KioskApp::class.java, "app")
-            .registerSubtype(KioskFolder::class.java, "folder")
-
-        return GsonBuilder()
-            .registerTypeAdapterFactory(typeFactory)
-            .create()
+        return GsonBuilder().create()
     }
 }
+

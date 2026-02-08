@@ -22,6 +22,7 @@ sealed interface SettingsFeature {
     @get:StringRes val titleRes: Int
     @get:DrawableRes val iconRes: Int
     val category: SettingCategory
+    val requiredSdkVersion: Int get() = 0
 }
 
 /**

@@ -63,7 +63,7 @@ object FrpProtectionFeature : ProtectionFeature {
         } catch (e: SecurityException) {
             Log.e(TAG, "Failed to apply FRP policy. App is likely not the device owner.", e)
         } catch (e: UnsupportedOperationException) {
-            Log.e(TAG, "FRP is not supported on this device.", e)
+            Log.w(TAG, "FRP is not supported on this device.")
         } catch (e: Exception) {
             Log.e(TAG, "An unexpected error occurred while applying FRP policy.", e)
         }

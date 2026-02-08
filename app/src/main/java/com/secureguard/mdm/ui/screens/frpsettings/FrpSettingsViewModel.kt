@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import com.secureguard.mdm.R
 import javax.inject.Inject
 
 data class FrpSettingsUiState(
@@ -33,6 +36,7 @@ sealed class FrpSettingsSideEffect {
 
 @HiltViewModel
 class FrpSettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
@@ -67,13 +71,13 @@ class FrpSettingsViewModel @Inject constructor(
         val newId = _uiState.value.newIdInput.trim()
         if (newId.isNotBlank() && newId.all { it.isDigit() }) {
             if (_uiState.value.customIds.contains(newId)) {
-                viewModelScope.launch { _sideEffect.emit(FrpSettingsSideEffect.ShowToast("ID כבר קיים ברשימה")) }
+                viewModelScope.launch { _sideEffect.emit(FrpSettingsSideEffect.ShowToast(context.getString(R.string.frp_settings_error_already_exists))) }
                 return
             }
             val updatedList = (_uiState.value.customIds + newId).sorted()
             _uiState.update { it.copy(customIds = updatedList, newIdInput = "") }
         } else {
-            viewModelScope.launch { _sideEffect.emit(FrpSettingsSideEffect.ShowToast("יש להזין ID המכיל מספרים בלבד")) }
+            viewModelScope.launch { _sideEffect.emit(FrpSettingsSideEffect.ShowToast(context.getString(R.string.frp_settings_error_digits_only))) }
         }
     }
 
@@ -85,7 +89,7 @@ class FrpSettingsViewModel @Inject constructor(
     private fun saveCustomIds() {
         viewModelScope.launch {
             settingsRepository.setCustomFrpIds(_uiState.value.customIds.toSet())
-            _sideEffect.emit(FrpSettingsSideEffect.ShowToast("רשימת ה-FRP המותאמת נשמרה"))
+            _sideEffect.emit(FrpSettingsSideEffect.ShowToast(context.getString(R.string.frp_settings_saved_success)))
             _sideEffect.emit(FrpSettingsSideEffect.NavigateBack)
         }
     }

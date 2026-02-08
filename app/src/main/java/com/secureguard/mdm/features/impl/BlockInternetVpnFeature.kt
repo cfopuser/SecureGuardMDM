@@ -26,12 +26,6 @@ object BlockInternetVpnFeature : ProtectionFeature {
      * The system becomes responsible for starting and stopping the VpnService.
      */
     override fun applyPolicy(context: Context, dpm: DevicePolicyManager, admin: ComponentName, enable: Boolean) {
-        // This check is crucial. The UI should have already handled permission,
-        // but we double-check here.
-        if (VpnService.prepare(context) != null) {
-            Log.w("BlockInternetVpnFeature", "VPN permission not granted. Cannot apply policy.")
-            return
-        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try {

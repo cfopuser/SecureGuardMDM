@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
@@ -42,6 +43,7 @@ fun DashboardScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var showAppInfoDialog by remember { mutableStateOf(false) }
+    var showAppNotInstalledDialog by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -71,6 +73,7 @@ fun DashboardScreen(
         viewModel.sideEffect.collectLatest { effect ->
             when (effect) {
                 is DashboardSideEffect.ToastMessage -> Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
+                is DashboardSideEffect.ShowAppNotInstalledDialog -> showAppNotInstalledDialog = true
             }
         }
     }
@@ -92,7 +95,7 @@ fun DashboardScreen(
                         }
                     }
                     IconButton(onClick = { showAppInfoDialog = true }) {
-                        Icon(painterResource(id = R.drawable.ic_info), contentDescription = "אודות האפליקציה")
+                        Icon(painterResource(id = R.drawable.ic_info), contentDescription = stringResource(R.string.dashboard_button_about_app))
                     }
                 }
             )
@@ -108,19 +111,38 @@ fun DashboardScreen(
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
+        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             if (uiState.isLoading) {
-                CircularProgressIndicator()
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             } else {
-                if (uiState.activeFeatures.isEmpty()) {
-                    Text(
-                        stringResource(id = R.string.dashboard_no_active_protections),
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                } else {
-                    LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    if (uiState.isNetfreeFeatureActive) {
+                        item {
+                            NetfreeStatusCard(
+                                uiState = uiState,
+                                onRecheck = { viewModel.onEvent(DashboardEvent.OnNetfreeRecheckClicked) },
+                                onRestart = { viewModel.onEvent(DashboardEvent.OnNetfreeRestartServiceClicked) }
+                            )
+                            Spacer(Modifier.height(16.dp))
+                        }
+                    }
+
+                    if (uiState.activeFeatures.isEmpty() && !uiState.isNetfreeFeatureActive) {
+                        item {
+                            Text(
+                                stringResource(id = R.string.dashboard_no_active_protections),
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                modifier = Modifier.fillParentMaxSize().wrapContentHeight(Alignment.CenterVertically)
+                            )
+                        }
+                    } else {
                         items(uiState.activeFeatures) { featureStatus ->
                             FeatureStatusRow(featureStatus = featureStatus)
                             HorizontalDivider()
@@ -154,6 +176,114 @@ fun DashboardScreen(
             uiState = uiState,
             onEvent = viewModel::onEvent
         )
+    }
+
+    if (showAppNotInstalledDialog) {
+        AppNotInstalledDialog(
+            onDismiss = { showAppNotInstalledDialog = false }
+        )
+    }
+}
+
+@Composable
+fun AppNotInstalledDialog(
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(id = R.string.dashboard_error_app_not_installed),
+                style = MaterialTheme.typography.titleLarge
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(id = R.string.dashboard_error_mod_apk_incompatibility),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss
+            ) {
+                Text(stringResource(id = R.string.dashboard_button_understood))
+            }
+        }
+    )
+}
+
+@Composable
+fun NetfreeStatusCard(
+    uiState: DashboardUiState,
+    onRecheck: () -> Unit,
+    onRestart: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(id = R.string.netfree_status_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // --- התיקון המלא כאן ---
+                val statusText: String
+                val statusColor: Color
+                val statusIcon = when (uiState.isNetfreeConnectionVerified) {
+                    true -> {
+                        statusText = when (uiState.approvedNetworkType) {
+                            "Wi-Fi" -> stringResource(id = R.string.netfree_status_verified_wifi)
+                            "Cellular" -> stringResource(id = R.string.netfree_status_verified_cellular)
+                            else -> stringResource(id = R.string.netfree_status_verified)
+                        }
+                        statusColor = Color(0xFF388E3C)
+                        Icons.Default.CheckCircle
+                    }
+                    false -> {
+                        statusText = stringResource(id = R.string.netfree_status_not_verified_and_blocked)
+                        statusColor = MaterialTheme.colorScheme.error
+                        Icons.Default.Warning
+                    }
+                    null -> {
+                        statusText = stringResource(id = R.string.netfree_status_checking)
+                        statusColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        Icons.AutoMirrored.Filled.HelpOutline
+                    }
+                }
+
+                if (uiState.isNetfreeCheckInProgress) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    Icon(imageVector = statusIcon, contentDescription = null, tint = statusColor)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = statusText, color = statusColor, style = MaterialTheme.typography.bodyLarge)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+            ) {
+                OutlinedButton(onClick = onRestart, enabled = !uiState.isNetfreeCheckInProgress) {
+                    Text(stringResource(id = R.string.netfree_button_restart_service))
+                }
+                Button(onClick = onRecheck, enabled = !uiState.isNetfreeCheckInProgress) {
+                    Text(stringResource(id = R.string.netfree_button_recheck))
+                }
+            }
+        }
     }
 }
 

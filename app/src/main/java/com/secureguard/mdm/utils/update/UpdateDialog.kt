@@ -13,6 +13,7 @@ import com.secureguard.mdm.R
 import com.secureguard.mdm.ui.screens.dashboard.DashboardEvent
 import com.secureguard.mdm.ui.screens.dashboard.DashboardUiState
 import com.secureguard.mdm.ui.screens.dashboard.UpdateDialogState
+import com.secureguard.mdm.utils.update.DownloadProgress
 
 @Composable
 fun UpdateDialog(
@@ -75,19 +76,39 @@ private fun UpdateInfoContent(changelog: String) {
 }
 
 @Composable
-private fun DownloadingContent(progress: Int) {
+private fun DownloadingContent(progress: DownloadProgress) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(stringResource(id = R.string.update_dialog_downloading))
-        Spacer(modifier = Modifier.height(16.dp))
-        LinearProgressIndicator(
-            progress = { progress / 100f },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("$progress%")
+        when (progress) {
+            is DownloadProgress.Downloading -> {
+                Text(stringResource(id = R.string.update_dialog_downloading))
+                Spacer(modifier = Modifier.height(16.dp))
+                LinearProgressIndicator(
+                    progress = { progress.progress / 100f },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("${progress.progress}%")
+            }
+            is DownloadProgress.Installing -> {
+                Text(stringResource(id = R.string.update_dialog_installing))
+                Spacer(modifier = Modifier.height(16.dp))
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(stringResource(id = R.string.update_dialog_please_wait))
+            }
+            else -> {
+                Text(stringResource(id = R.string.update_dialog_processing))
+                Spacer(modifier = Modifier.height(16.dp))
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
     }
 }
 
@@ -97,7 +118,7 @@ private fun ErrorContent(error: String) {
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("שגיאה", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
+        Text(stringResource(id = R.string.update_dialog_error), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
         Spacer(modifier = Modifier.height(8.dp))
         Text(error, style = MaterialTheme.typography.bodyMedium)
     }

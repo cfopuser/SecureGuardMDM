@@ -67,8 +67,8 @@ class MainService : Service() {
         }
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("A Bloq")
-            .setContentText("Initializing services...")
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText(getString(R.string.main_service_initializing))
             .setSmallIcon(R.drawable.ic_safe_boot_blocked)
             .build()
     }

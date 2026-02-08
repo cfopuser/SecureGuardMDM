@@ -5,6 +5,7 @@ import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Build
 import android.util.Log
@@ -14,11 +15,14 @@ import com.secureguard.mdm.R
 import com.secureguard.mdm.SecureGuardDeviceAdminReceiver
 import com.secureguard.mdm.data.repository.SettingsRepository
 import com.secureguard.mdm.features.api.ProtectionFeature
+import com.secureguard.mdm.features.impl.NetfreeOnlyModeFeature
 import com.secureguard.mdm.features.registry.FeatureRegistry
 import com.secureguard.mdm.receivers.InstallReceiver
 import com.secureguard.mdm.security.PasswordManager
+import com.secureguard.mdm.services.NetfreeMonitorService
 import com.secureguard.mdm.utils.SecureUpdateHelper
 import com.secureguard.mdm.utils.UpdateVerificationResult
+import com.secureguard.mdm.utils.update.DownloadProgress
 import com.secureguard.mdm.utils.update.UpdateInfo
 import com.secureguard.mdm.utils.update.UpdateManager
 import com.secureguard.mdm.utils.update.UpdateResult
@@ -47,30 +51,37 @@ data class DashboardUiState(
     val isLoading: Boolean = true,
     val isPasswordPromptVisible: Boolean = false,
     val passwordError: String? = null,
-    // Update related state
     val updateDialogState: UpdateDialogState = UpdateDialogState.HIDDEN,
     val availableUpdateInfo: UpdateInfo? = null,
-    val downloadProgress: Int = 0,
+    val downloadProgress: DownloadProgress = DownloadProgress.Downloading(0),
     val updateError: String? = null,
-    // UI control based on settings
     val isSettingsButtonVisible: Boolean = true,
     val isContactEmailVisible: Boolean = true,
-    val isManualUpdateEnabled: Boolean = true
+    val isManualUpdateEnabled: Boolean = true,
+    val isNetfreeFeatureActive: Boolean = false,
+    val isNetfreeConnectionVerified: Boolean? = null, // null = in progress/unknown
+    val approvedNetworkType: String? = null,
+    val isNetfreeCheckInProgress: Boolean = false
 )
 
+
 sealed class DashboardEvent {
-    object OnSettingsClicked : DashboardEvent()
+    data object OnSettingsClicked : DashboardEvent()
     data class OnPasswordEntered(val password: String) : DashboardEvent()
-    object OnDismissPasswordPrompt : DashboardEvent()
+    data object OnDismissPasswordPrompt : DashboardEvent()
     data class OnUpdateFileSelected(val uri: Uri?) : DashboardEvent()
-    object OnManualUpdateCheck : DashboardEvent() // <-- אירוע חדש
-    // Update events
-    object OnStartUpdateDownload : DashboardEvent()
-    object OnDismissUpdateDialog : DashboardEvent()
+    data object OnManualUpdateCheck : DashboardEvent()
+    data object OnStartUpdateDownload : DashboardEvent()
+    data object OnDismissUpdateDialog : DashboardEvent()
+    data object OnNetfreeRecheckClicked : DashboardEvent()
+    data object OnNetfreeRestartServiceClicked : DashboardEvent()
 }
 
 
-sealed class DashboardSideEffect { data class ToastMessage(val message: String) : DashboardSideEffect() }
+sealed class DashboardSideEffect {
+    data class ToastMessage(val message: String) : DashboardSideEffect()
+    object ShowAppNotInstalledDialog : DashboardSideEffect()
+}
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
@@ -79,7 +90,7 @@ class DashboardViewModel @Inject constructor(
     private val secureUpdateHelper: SecureUpdateHelper,
     private val dpm: DevicePolicyManager,
     private val updateManager: UpdateManager,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -120,6 +131,62 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    // --- התיקון כאן: עדכון המשתנים הנכונים ---
+    private fun checkNetfreeStatus() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isNetfreeCheckInProgress = true, isNetfreeConnectionVerified = null) }
+            val status = NetfreeMonitorService.getNetfreeStatus(context)
+            if (!NetfreeMonitorService.isServiceActive(context)) {
+                _uiState.update {
+                    it.copy(
+                        isNetfreeConnectionVerified = false,
+                        approvedNetworkType = null,
+                        isNetfreeCheckInProgress = false
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isNetfreeConnectionVerified = !status.isBlocked,
+                        approvedNetworkType = status.approvedNetworkType,
+                        isNetfreeCheckInProgress = false
+                    )
+                }
+            }
+        }
+    }
+
+    private fun recheckNetfreeConnection() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isNetfreeCheckInProgress = true) }
+            _sideEffect.emit(DashboardSideEffect.ToastMessage(context.getString(R.string.netfree_recheck_triggered)))
+            val intent = Intent(context, NetfreeMonitorService::class.java).apply {
+                action = NetfreeMonitorService.ACTION_FORCE_RECHECK
+            }
+            context.startService(intent)
+            kotlinx.coroutines.delay(2000)
+            checkNetfreeStatus()
+        }
+    }
+
+    private fun restartNetfreeService() {
+        viewModelScope.launch {
+            val intent = Intent(context, NetfreeMonitorService::class.java).apply {
+                action = NetfreeMonitorService.ACTION_STOP_MONITORING
+            }
+            context.startService(intent)
+            kotlinx.coroutines.delay(500)
+            val startIntent = Intent(context, NetfreeMonitorService::class.java).apply {
+                action = NetfreeMonitorService.ACTION_START_MONITORING
+            }
+            context.startService(startIntent)
+            _sideEffect.emit(DashboardSideEffect.ToastMessage(context.getString(R.string.netfree_service_restarted)))
+            kotlinx.coroutines.delay(1000)
+            checkNetfreeStatus()
+        }
+    }
+
+
     private fun checkForUpdates(isAutoCheck: Boolean) {
         viewModelScope.launch {
             if (!isAutoCheck || settingsRepository.isAutoUpdateCheckEnabled()) {
@@ -144,25 +211,27 @@ class DashboardViewModel @Inject constructor(
 
     fun onEvent(event: DashboardEvent) {
         when (event) {
-            is DashboardEvent.OnSettingsClicked -> {
+            DashboardEvent.OnSettingsClicked -> {
                 if (!_uiState.value.isSettingsButtonVisible) return
                 _uiState.update { it.copy(isPasswordPromptVisible = true, passwordError = null) }
             }
-            is DashboardEvent.OnDismissPasswordPrompt -> _uiState.update { it.copy(isPasswordPromptVisible = false) }
+            DashboardEvent.OnDismissPasswordPrompt -> _uiState.update { it.copy(isPasswordPromptVisible = false) }
             is DashboardEvent.OnPasswordEntered -> verifyPasswordAndNavigate(event.password)
             is DashboardEvent.OnUpdateFileSelected -> {
                 if (!_uiState.value.isManualUpdateEnabled) return
                 event.uri?.let { handleSecureUpdate(it) }
             }
-            is DashboardEvent.OnStartUpdateDownload -> startUpdateDownload()
-            is DashboardEvent.OnDismissUpdateDialog -> _uiState.update { it.copy(updateDialogState = UpdateDialogState.HIDDEN) }
-            is DashboardEvent.OnManualUpdateCheck -> checkForUpdates(isAutoCheck = false)
+            DashboardEvent.OnStartUpdateDownload -> startUpdateDownload()
+            DashboardEvent.OnDismissUpdateDialog -> _uiState.update { it.copy(updateDialogState = UpdateDialogState.HIDDEN) }
+            DashboardEvent.OnManualUpdateCheck -> checkForUpdates(isAutoCheck = false)
+            DashboardEvent.OnNetfreeRecheckClicked -> recheckNetfreeConnection()
+            DashboardEvent.OnNetfreeRestartServiceClicked -> restartNetfreeService()
         }
     }
 
     private fun startUpdateDownload() {
         val updateInfo = _uiState.value.availableUpdateInfo ?: return
-        _uiState.update { it.copy(updateDialogState = UpdateDialogState.DOWNLOADING, downloadProgress = 0) }
+        _uiState.update { it.copy(updateDialogState = UpdateDialogState.DOWNLOADING, downloadProgress = DownloadProgress.Downloading(0)) }
 
         viewModelScope.launch {
             updateManager.downloadAndInstallUpdate(updateInfo)
@@ -175,7 +244,23 @@ class DashboardViewModel @Inject constructor(
                     }
                 }
                 .collect { progress ->
-                    _uiState.update { it.copy(downloadProgress = progress) }
+                    when (progress) {
+                        is DownloadProgress.Completed -> {
+                            // Installation completed, close dialog
+                            _uiState.update { it.copy(updateDialogState = UpdateDialogState.HIDDEN) }
+                        }
+                        is DownloadProgress.Error -> {
+                            _uiState.update {
+                                it.copy(
+                                    updateDialogState = UpdateDialogState.ERROR,
+                                    updateError = progress.message
+                                )
+                            }
+                        }
+                        else -> {
+                            _uiState.update { it.copy(downloadProgress = progress) }
+                        }
+                    }
                 }
         }
     }
@@ -184,7 +269,13 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = secureUpdateHelper.verifyUpdate(uri)) {
                 is UpdateVerificationResult.Success -> installPackage(uri)
-                is UpdateVerificationResult.Failure -> _sideEffect.emit(DashboardSideEffect.ToastMessage(result.errorMessage))
+                is UpdateVerificationResult.Failure -> {
+                    if (result.errorMessage == "APP_NOT_INSTALLED") {
+                        _sideEffect.emit(DashboardSideEffect.ShowAppNotInstalledDialog)
+                    } else {
+                        _sideEffect.emit(DashboardSideEffect.ToastMessage(result.errorMessage))
+                    }
+                }
             }
         }
     }
@@ -210,7 +301,7 @@ class DashboardViewModel @Inject constructor(
                 session.commit(pendingIntent.intentSender)
                 session.close()
             } catch (e: Exception) {
-                _sideEffect.emit(DashboardSideEffect.ToastMessage("שגיאה בהתחלת ההתקנה: ${e.localizedMessage}"))
+                _sideEffect.emit(DashboardSideEffect.ToastMessage(context.getString(R.string.error_installing_update, e.localizedMessage)))
             }
         }
     }
@@ -221,7 +312,7 @@ class DashboardViewModel @Inject constructor(
                 _uiState.update { it.copy(isPasswordPromptVisible = false) }
                 _navigationEvent.emit(Unit)
             } else {
-                _uiState.update { it.copy(passwordError = "סיסמה שגויה") }
+                _uiState.update { it.copy(passwordError = context.getString(R.string.dialog_error_wrong_password)) }
             }
         }
     }
@@ -234,7 +325,14 @@ class DashboardViewModel @Inject constructor(
                 FeatureStatus(feature, isActive)
             }
             val activeFeatures = allStatuses.filter { it.isActive }
-            _uiState.update { it.copy(activeFeatures = activeFeatures, isLoading = false) }
+
+            val isNetfreeActive = activeFeatures.any { it.feature.id == NetfreeOnlyModeFeature.id }
+
+            _uiState.update { it.copy(activeFeatures = activeFeatures, isLoading = false, isNetfreeFeatureActive = isNetfreeActive) }
+
+            if (isNetfreeActive) {
+                checkNetfreeStatus()
+            }
         }
     }
 }

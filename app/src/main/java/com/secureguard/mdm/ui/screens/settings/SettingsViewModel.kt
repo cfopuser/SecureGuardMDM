@@ -1,11 +1,17 @@
 package com.secureguard.mdm.ui.screens.settings
 
+import android.app.admin.DeviceAdminInfo
+import android.app.admin.DeviceAdminReceiver
 import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
 import android.net.VpnService
 import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.secureguard.mdm.R
@@ -13,6 +19,7 @@ import com.secureguard.mdm.SecureGuardDeviceAdminReceiver
 import com.secureguard.mdm.data.repository.SettingsRepository
 import com.secureguard.mdm.features.impl.BlockInternetVpnFeature
 import com.secureguard.mdm.features.impl.InstallAndProtectNetGuardFeature
+import com.secureguard.mdm.features.impl.NetfreeOnlyModeFeature
 import com.secureguard.mdm.features.registry.CategoryRegistry
 import com.secureguard.mdm.security.PasswordManager
 import com.secureguard.mdm.settingsfeatures.api.SettingsFeature
@@ -48,6 +55,15 @@ class SettingsViewModel @Inject constructor(
     private val _passwordPromptState = MutableStateFlow(PasswordPromptState())
     val passwordPromptState = _passwordPromptState.asStateFlow()
 
+    private val _removalOptionsDialogState = MutableStateFlow(RemovalOptionsDialogState())
+    val removalOptionsDialogState = _removalOptionsDialogState.asStateFlow()
+
+    private val _deviceAdminSelectionState = MutableStateFlow(DeviceAdminSelectionState())
+    val deviceAdminSelectionState = _deviceAdminSelectionState.asStateFlow()
+
+    private val _errorDialogState = MutableStateFlow(ErrorDialogState())
+    val errorDialogState = _errorDialogState.asStateFlow()
+
     private val _sideEffect = MutableSharedFlow<SettingsSideEffect>()
     val sideEffect = _sideEffect.asSharedFlow()
 
@@ -71,6 +87,7 @@ class SettingsViewModel @Inject constructor(
         loadInitialState()
     }
 
+    @RequiresApi(Build.VERSION_CODES.P)
     fun onEvent(event: SettingsEvent) {
         when (event) {
             is SettingsEvent.OnToggleProtectionFeature -> handleProtectionToggle(event.featureId, event.isEnabled)
@@ -78,6 +95,14 @@ class SettingsViewModel @Inject constructor(
             is SettingsEvent.OnToggleSettingChanged -> handleSettingToggle(event.settingId, event.isChecked)
             is SettingsEvent.OnActionSettingClicked -> handleActionClick(event.settingId)
             is SettingsEvent.OnLockSettingsConfirmed -> lockSettings(event.allowManualUpdate)
+            is SettingsEvent.OnRegularRemovalSelected -> handleRegularRemovalSelected()
+            is SettingsEvent.OnTransferOwnershipSelected -> handleTransferOwnershipSelected()
+            is SettingsEvent.OnDismissRemovalOptionsDialog -> _removalOptionsDialogState.update { RemovalOptionsDialogState() }
+            is SettingsEvent.OnDeviceAdminSelectionDismissed -> _deviceAdminSelectionState.update { DeviceAdminSelectionState() }
+            is SettingsEvent.OnDeviceAdminSelected -> handleDeviceAdminSelected(event.deviceAdminItem)
+            is SettingsEvent.OnDeviceAdminTransferConfirmed -> handleDeviceAdminTransferConfirmed()
+            is SettingsEvent.OnDeviceAdminTransferCancelled -> handleDeviceAdminTransferCancelled()
+            is SettingsEvent.OnErrorDialogDismissed -> _errorDialogState.update { ErrorDialogState() }
             is SettingsEvent.OnSaveClick -> saveChanges()
             is SettingsEvent.OnSnackbarShown -> _uiState.update { it.copy(snackbarMessage = null) }
         }
@@ -135,18 +160,8 @@ class SettingsViewModel @Inject constructor(
     }
 
     private suspend fun loadSettingsFeatures(): Map<com.secureguard.mdm.settingsfeatures.api.SettingCategory, List<SettingItemModel>> {
-        // --- START OF MINIMALIST CHANGE ---
-        val availableSettings = SettingsRegistry.allSettings.filter { feature ->
-            if (feature.id == NavigateToKioskModeSetting.id) {
-                // Keep Kiosk setting only if SDK is newer than Nougat (API 24)
-                Build.VERSION.SDK_INT > Build.VERSION_CODES.N
-            } else {
-                true // Keep all other settings
-            }
-        }
-        // --- END OF MINIMALIST CHANGE ---
-
-        return availableSettings // Use the filtered list
+        val currentDeviceApi = Build.VERSION.SDK_INT
+        return SettingsRegistry.allSettings
             .map { feature ->
                 val isChecked = if (feature is ToggleSetting) {
                     when (feature.id) {
@@ -154,11 +169,17 @@ class SettingsViewModel @Inject constructor(
                         ToggleUiControlTypeSetting.id -> settingsRepository.useCheckbox()
                         ToggleContactEmailSetting.id -> settingsRepository.isContactEmailVisible()
                         ToggleUpdatesSetting.id -> settingsRepository.areAllUpdatesDisabled()
-                        ShowBootToastSetting.id -> settingsRepository.isShowBootToastEnabled() // <-- Load initial state
+                        ShowBootToastSetting.id -> settingsRepository.isShowBootToastEnabled()
                         else -> false
                     }
                 } else false
-                SettingItemModel(feature = feature, isChecked = isChecked)
+                
+                SettingItemModel(
+                    feature = feature,
+                    isChecked = isChecked,
+                    isSupported = currentDeviceApi >= feature.requiredSdkVersion,
+                    requiredApi = feature.requiredSdkVersion
+                )
             }
             .groupBy { it.feature.category }
     }
@@ -170,7 +191,7 @@ class SettingsViewModel @Inject constructor(
                 // This is handled in the screen, which shows the dialog.
                 // The dialog confirmation will call OnLockSettingsConfirmed.
             }
-            RemoveProtectionAction.id -> {
+            RemovalOptionsAction.id -> {
                 _passwordPromptState.update { it.copy(isVisible = true) }
             }
         }
@@ -254,7 +275,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun handleProtectionToggle(featureId: String, isEnabled: Boolean) {
-        if (featureId == BlockInternetVpnFeature.id && isEnabled) {
+        if ((featureId == BlockInternetVpnFeature.id || featureId == NetfreeOnlyModeFeature.id) && isEnabled) {
             if (VpnService.prepare(context) != null) {
                 pendingVpnEnableRequest = true
                 viewModelScope.launch { _vpnPermissionRequestEvent.emit(Unit) }
@@ -274,9 +295,17 @@ class SettingsViewModel @Inject constructor(
 
     private fun handleVpnPermissionResult(granted: Boolean) {
         if (granted && pendingVpnEnableRequest) {
-            handleProtectionToggle(BlockInternetVpnFeature.id, true)
+            // Find which feature was pending
+            val pendingFeature = _uiState.value.protectionCategoryToggles
+                .flatMap { it.toggles }
+                .find { it.feature.id == BlockInternetVpnFeature.id || it.feature.id == NetfreeOnlyModeFeature.id }
+                ?.feature?.id
+
+            if (pendingFeature != null) {
+                handleProtectionToggle(pendingFeature, true)
+            }
         } else if (!granted) {
-            _uiState.update { it.copy(snackbarMessage = "נדרש אישור להפעלת ה-VPN") }
+            _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_error_vpn_permission_required)) }
         }
         pendingVpnEnableRequest = false
     }
@@ -285,11 +314,139 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             if (passwordManager.verifyPassword(password)) {
                 _passwordPromptState.update { it.copy(isVisible = false) }
-                initiateRemoval()
+                _removalOptionsDialogState.update { RemovalOptionsDialogState(isVisible = true) }
             } else {
-                _passwordPromptState.update { it.copy(error = "סיסמה שגויה") }
+                _passwordPromptState.update { it.copy(error = context.getString(R.string.dialog_error_wrong_password)) }
             }
         }
+    }
+
+    private fun handleRegularRemovalSelected() {
+        _removalOptionsDialogState.update { RemovalOptionsDialogState() }
+        initiateRemoval()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.P)
+    private fun handleTransferOwnershipSelected() {
+        _removalOptionsDialogState.update { RemovalOptionsDialogState() }
+        // TODO: Show device admin selection dialog
+        showDeviceAdminSelection()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.P)
+    private fun showDeviceAdminSelection() {
+        viewModelScope.launch {
+            try {
+                val deviceAdmins = loadDeviceAdmins()
+                _deviceAdminSelectionState.update {
+                    DeviceAdminSelectionState(isVisible = true, deviceAdmins = deviceAdmins)
+                }
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Error loading device admins", e)
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_error_loading_device_admins)) }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.P)
+    private fun loadDeviceAdmins(): List<DeviceAdminItem> {
+        val pm = context.packageManager
+        val deviceAdmins = mutableListOf<DeviceAdminItem>()
+
+        // Query for device admin receivers
+        val intent = Intent(DeviceAdminReceiver.ACTION_DEVICE_ADMIN_ENABLED)
+        val resolveInfos = pm.queryBroadcastReceivers(intent, PackageManager.GET_META_DATA)
+
+        for (resolveInfo in resolveInfos) {
+            try {
+                val deviceAdminInfo = DeviceAdminInfo(context, resolveInfo)
+                val displayName = deviceAdminInfo.loadLabel(pm).toString()
+                val packageName = deviceAdminInfo.packageName
+
+                // Skip our own app and check if the app supports ownership transfer
+                if (packageName != context.packageName && deviceAdminInfo.supportsTransferOwnership()) {
+                    deviceAdmins.add(DeviceAdminItem(deviceAdminInfo, displayName, packageName))
+                }
+            } catch (e: Exception) {
+                Log.w("SettingsVM", "Error loading device admin info for ${resolveInfo.activityInfo?.packageName}", e)
+            }
+        }
+
+        return deviceAdmins
+    }
+
+    private fun handleDeviceAdminSelected(deviceAdminItem: DeviceAdminItem) {
+        _deviceAdminSelectionState.update { it.copy(selectedAdmin = deviceAdminItem, showConfirmationDialog = true) }
+    }
+
+    private fun handleDeviceAdminTransferConfirmed() {
+        val selectedAdmin = _deviceAdminSelectionState.value.selectedAdmin
+        if (selectedAdmin != null) {
+            performOwnershipTransfer(selectedAdmin)
+        }
+        _deviceAdminSelectionState.update { DeviceAdminSelectionState() }
+    }
+
+    private fun handleDeviceAdminTransferCancelled() {
+        _deviceAdminSelectionState.update { it.copy(selectedAdmin = null, showConfirmationDialog = false) }
+    }
+
+    private fun performOwnershipTransfer(deviceAdminItem: DeviceAdminItem) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            // transferOwnership is only available from API 28 (Android P)
+            _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_error_android_version_required)) }
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+
+                // bruh, why? AI is so stupid..
+                // initiateRemoval()
+
+                // Remove all protection features
+                _uiState.value.protectionCategoryToggles.flatMap { it.toggles }.forEach {
+                    it.feature.applyPolicy(context, dpm, adminComponentName, false)
+                    settingsRepository.setFeatureState(it.feature.id, false)
+                }
+
+                // Unhide blocked apps
+                val blockedApps = settingsRepository.getBlockedAppPackages()
+                blockedApps.forEach { packageName ->
+                    dpm.setApplicationHidden(adminComponentName, packageName, false)
+                }
+                // Unsuspend apps
+                val suspendedApps = settingsRepository.getSuspendedAppPackages()
+                suspendedApps.forEach { packageName ->
+                    dpm.setPackagesSuspended(adminComponentName, arrayOf(packageName), false)
+                }
+                settingsRepository.removeAppsFromCache((blockedApps + suspendedApps).toList())
+                settingsRepository.setBlockedAppPackages(emptySet())
+                settingsRepository.setSuspendedAppPackages(emptySet())
+                // try to move owner
+                val targetComponent = deviceAdminItem.deviceAdminInfo.component
+                dpm.transferOwnership(adminComponentName, targetComponent, null)
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_transfer_ownership_success, deviceAdminItem.displayName)) }
+                // remove app
+                _triggerUninstallEvent.emit(Unit)
+            } catch (e: SecurityException) {
+                Log.e("SettingsVM", "Error transferring ownership", e)
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_transfer_ownership_error, e.message)) }
+            } catch (e: IllegalArgumentException) {
+                Log.e("SettingsVM", "Invalid target for ownership transfer", e)
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_transfer_ownership_error_unsupported, e.message)) }
+            } catch (e: IllegalStateException) {
+                Log.e("SettingsVM", "Invalid state for ownership transfer", e)
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_transfer_ownership_error_invalid_state, e.message)) }
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Unexpected error during ownership transfer", e)
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_transfer_ownership_error_unexpected, e.message ?: context.getString(R.string.dialog_button_cancel))) }
+            }
+        }
+    }
+
+    private fun showErrorDialog(title: String, message: String) {
+        _errorDialogState.update { ErrorDialogState(isVisible = true, title = title, message = message) }
     }
 
     private fun isNetGuardInstalled(): Boolean {
@@ -304,21 +461,46 @@ class SettingsViewModel @Inject constructor(
     private fun initiateRemoval() {
         viewModelScope.launch {
             try {
+                // Remove all protection features
                 _uiState.value.protectionCategoryToggles.flatMap { it.toggles }.forEach {
                     it.feature.applyPolicy(context, dpm, adminComponentName, false)
                     settingsRepository.setFeatureState(it.feature.id, false)
                 }
 
+                // Unhide blocked apps
                 val blockedApps = settingsRepository.getBlockedAppPackages()
                 blockedApps.forEach { packageName ->
                     dpm.setApplicationHidden(adminComponentName, packageName, false)
                 }
-                settingsRepository.removeAppsFromCache(blockedApps.toList())
+                // Unsuspend apps
+                val suspendedApps = settingsRepository.getSuspendedAppPackages()
+                suspendedApps.forEach { packageName ->
+                    dpm.setPackagesSuspended(adminComponentName, arrayOf(packageName), false)
+                }
+                settingsRepository.removeAppsFromCache((blockedApps + suspendedApps).toList())
                 settingsRepository.setBlockedAppPackages(emptySet())
+                settingsRepository.setSuspendedAppPackages(emptySet())
+
+                // Clear device owner (this removes admin privileges)
                 dpm.clearDeviceOwnerApp(context.packageName)
+
+                // Trigger app uninstall
                 _triggerUninstallEvent.emit(Unit)
             } catch (e: SecurityException) {
-                _uiState.update { it.copy(snackbarMessage = "שגיאה בהסרת הרשאות הניהול.") }
+                Log.e("SettingsVM", "Security error during removal", e)
+                showErrorDialog(context.getString(R.string.removal_error_security_title), context.getString(R.string.removal_error_security, e.message))
+            } catch (e: IllegalArgumentException) {
+                Log.e("SettingsVM", "Invalid argument during removal", e)
+                showErrorDialog(context.getString(R.string.removal_error_invalid_parameter_title), context.getString(R.string.removal_error_invalid_parameter, e.message))
+            } catch (e: IllegalStateException) {
+                Log.e("SettingsVM", "Invalid state during removal", e)
+                showErrorDialog(context.getString(R.string.removal_error_invalid_state_title), context.getString(R.string.removal_error_invalid_state, e.message))
+            } catch (e: RuntimeException) {
+                Log.e("SettingsVM", "Runtime error during removal", e)
+                showErrorDialog(context.getString(R.string.removal_error_runtime_title), context.getString(R.string.removal_error_runtime, e.message))
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Unexpected error during removal", e)
+                showErrorDialog(context.getString(R.string.removal_error_unexpected_title), context.getString(R.string.removal_error_unexpected, e.message ?: context.getString(R.string.dialog_button_cancel)))
             }
         }
     }
@@ -327,6 +509,29 @@ class SettingsViewModel @Inject constructor(
 data class PasswordPromptState(
     val isVisible: Boolean = false,
     val error: String? = null
+)
+
+data class RemovalOptionsDialogState(
+    val isVisible: Boolean = false
+)
+
+data class DeviceAdminItem(
+    val deviceAdminInfo: DeviceAdminInfo,
+    val displayName: String,
+    val packageName: String
+)
+
+data class DeviceAdminSelectionState(
+    val isVisible: Boolean = false,
+    val deviceAdmins: List<DeviceAdminItem> = emptyList(),
+    val selectedAdmin: DeviceAdminItem? = null,
+    val showConfirmationDialog: Boolean = false
+)
+
+data class ErrorDialogState(
+    val isVisible: Boolean = false,
+    val title: String = "",
+    val message: String = ""
 )
 
 sealed class PasswordPromptEvent {

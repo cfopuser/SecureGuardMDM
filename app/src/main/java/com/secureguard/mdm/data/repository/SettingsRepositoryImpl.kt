@@ -4,6 +4,10 @@ import com.secureguard.mdm.data.db.BlockedAppCache
 import com.secureguard.mdm.data.db.BlockedAppCacheDao
 import com.secureguard.mdm.data.local.PreferencesManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -124,6 +128,14 @@ class SettingsRepositoryImpl @Inject constructor(
         preferencesManager.saveStringSet(PreferencesManager.KEY_BLOCKED_APP_PACKAGES, packageNames)
     }
 
+    override suspend fun getSuspendedAppPackages(): Set<String> = withContext(Dispatchers.IO) {
+        preferencesManager.loadStringSet(PreferencesManager.KEY_SUSPENDED_APP_PACKAGES, emptySet())
+    }
+
+    override suspend fun setSuspendedAppPackages(packageNames: Set<String>) = withContext(Dispatchers.IO) {
+        preferencesManager.saveStringSet(PreferencesManager.KEY_SUSPENDED_APP_PACKAGES, packageNames)
+    }
+
     override suspend fun getBlockedAppsCache(): List<BlockedAppCache> = withContext(Dispatchers.IO) {
         blockedAppCacheDao.getAll()
     }
@@ -219,5 +231,64 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setKioskSettingsInLockTaskEnabled(isEnabled: Boolean) = withContext(Dispatchers.IO) {
         preferencesManager.saveBoolean(PreferencesManager.KEY_KIOSK_ALLOW_SETTINGS_IN_LOCK_TASK, isEnabled)
+    }
+
+    override suspend fun getChosenHomeLauncherPackage(): String? = withContext(Dispatchers.IO) {
+        preferencesManager.loadString(PreferencesManager.KEY_CHOSEN_HOME_LAUNCHER_PKG, null)
+    }
+
+    override suspend fun setChosenHomeLauncherPackage(packageName: String?) = withContext(Dispatchers.IO) {
+        preferencesManager.saveString(PreferencesManager.KEY_CHOSEN_HOME_LAUNCHER_PKG, packageName)
+    }
+
+    override suspend fun shouldNotShowHomeChoiceAgain(): Boolean = withContext(Dispatchers.IO) {
+        preferencesManager.loadBoolean(PreferencesManager.KEY_DONT_SHOW_HOME_CHOICE_AGAIN, false)
+    }
+
+    override suspend fun setDontShowHomeChoiceAgain(dontShow: Boolean) = withContext(Dispatchers.IO) {
+        preferencesManager.saveBoolean(PreferencesManager.KEY_DONT_SHOW_HOME_CHOICE_AGAIN, dontShow)
+    }
+
+    override suspend fun isKioskAppMonitorEnabled(): Boolean = withContext(Dispatchers.IO) {
+        preferencesManager.loadBoolean(PreferencesManager.KEY_KIOSK_APP_MONITOR_ENABLED, false)
+    }
+
+    override suspend fun setKioskAppMonitorEnabled(isEnabled: Boolean) = withContext(Dispatchers.IO) {
+        preferencesManager.saveBoolean(PreferencesManager.KEY_KIOSK_APP_MONITOR_ENABLED, isEnabled)
+    }
+
+    // --- מימוש Flows לעדכון חי ---
+
+    override fun getKioskEnabledFlow(): Flow<Boolean> = preferenceFlow(PreferencesManager.KEY_KIOSK_MODE_ENABLED) {
+        preferencesManager.loadBoolean(PreferencesManager.KEY_KIOSK_MODE_ENABLED, false)
+    }
+
+    override fun getKioskAppPackagesFlow(): Flow<Set<String>> = preferenceFlow(PreferencesManager.KEY_KIOSK_APP_PACKAGES) {
+        preferencesManager.loadStringSet(PreferencesManager.KEY_KIOSK_APP_PACKAGES, emptySet())
+    }
+
+    override fun getKioskTitleFlow(): Flow<String> = preferenceFlow(PreferencesManager.KEY_KIOSK_TITLE_TEXT) {
+        preferencesManager.loadString(PreferencesManager.KEY_KIOSK_TITLE_TEXT, "Kiosk Mode") ?: "Kiosk Mode"
+    }
+
+    override fun getKioskBackgroundColorFlow(): Flow<Int> = preferenceFlow(PreferencesManager.KEY_KIOSK_BACKGROUND_COLOR) {
+        preferencesManager.loadInt(PreferencesManager.KEY_KIOSK_BACKGROUND_COLOR, 0xFF212121.toInt())
+    }
+
+    override fun getKioskPrimaryColorFlow(): Flow<Int> = preferenceFlow(PreferencesManager.KEY_KIOSK_PRIMARY_COLOR) {
+        preferencesManager.loadInt(PreferencesManager.KEY_KIOSK_PRIMARY_COLOR, 0xFF6200EE.toInt())
+    }
+
+    private fun <T> preferenceFlow(key: String, getValue: () -> T): Flow<T> = callbackFlow {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, changedKey ->
+            if (key == changedKey) {
+                trySend(getValue())
+            }
+        }
+        preferencesManager.prefs.registerOnSharedPreferenceChangeListener(listener)
+        trySend(getValue()) // Send initial value
+        awaitClose {
+            preferencesManager.prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
     }
 }

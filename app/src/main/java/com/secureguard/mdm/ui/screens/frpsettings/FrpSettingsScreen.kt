@@ -11,6 +11,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
+import androidx.compose.ui.res.stringResource
+import com.secureguard.mdm.R
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,17 +46,17 @@ fun FrpSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("הגדר FRP מותאם אישית") },
+                title = { Text(stringResource(id = R.string.frp_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "חזור")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(id = R.string.dialog_button_cancel))
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.onEvent(FrpSettingsEvent.OnSaveClicked) }) {
-                Icon(Icons.Default.Save, contentDescription = "שמור")
+                Icon(Icons.Default.Save, contentDescription = stringResource(id = R.string.settings_button_save))
             }
         }
     ) { paddingValues ->
@@ -65,7 +67,7 @@ fun FrpSettingsScreen(
                 .padding(16.dp)
         ) {
             Text(
-                text = "הוסף חשבונות Google (לפי User ID) שיורשו לבצע איפוס למכשיר. אם רשימה זו ריקה, ייעשה שימוש בחשבון ברירת המחדל.",
+                text = stringResource(id = R.string.frp_settings_description),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
@@ -78,7 +80,7 @@ fun FrpSettingsScreen(
                 OutlinedTextField(
                     value = uiState.newIdInput,
                     onValueChange = { viewModel.onEvent(FrpSettingsEvent.OnNewIdChanged(it)) },
-                    label = { Text("הזן User ID") },
+                    label = { Text(stringResource(id = R.string.frp_settings_label_user_id)) },
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
@@ -98,7 +100,7 @@ fun FrpSettingsScreen(
                 }
             } else if (uiState.customIds.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("לא הוגדרו חשבונות מותאמים אישית.", textAlign = TextAlign.Center)
+                    Text(stringResource(id = R.string.frp_settings_empty_list), textAlign = TextAlign.Center)
                 }
             } else {
                 LazyColumn(
@@ -126,7 +128,7 @@ private fun IdRow(id: String, onDelete: () -> Unit) {
     ) {
         Text(text = id, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = "מחק ID")
+            Icon(Icons.Default.Delete, contentDescription = stringResource(id = R.string.frp_settings_desc_delete_id))
         }
     }
 }

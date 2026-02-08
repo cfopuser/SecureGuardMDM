@@ -63,10 +63,9 @@ object CategoryRegistry {
         ProtectionCategory(
             titleResId = R.string.category_vpn,
             features = listOf(
+                NetfreeOnlyModeFeature,
                 BlockInternetVpnFeature,
-                BlockVpnSettingsFeature,
-                InstallAndProtectNetGuardFeature,
-                ForceNetGuardVpnFeature
+                BlockVpnSettingsFeature
             )
         ),
         ProtectionCategory(

@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -13,8 +14,8 @@ android {
         applicationId = "com.secureguard.mdm"
         minSdk = 22
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.4.5"
+        versionCode = 3
+        versionName = "0.4.6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -42,7 +43,6 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
-    // משאיר את viewBinding פעיל כי הוא משמש במסכי ה-XML שנותרו (כמו Main Activity)
     buildFeatures {
         compose = true
         viewBinding = true
@@ -56,7 +56,6 @@ android {
         }
     }
 
-    // שינוי שם הקובץ ל-Abloq-(סוג הבילד).apk
     applicationVariants.all {
         outputs.all {
             val apkName = "Abloq-${buildType.name}.apk"
@@ -67,6 +66,7 @@ android {
 
 dependencies {
     val roomVersion = "2.6.1"
+    val ktorVersion = "2.3.11"
 
     // Kotlin/Android Core
     implementation("androidx.core:core-ktx:1.12.0")
@@ -76,57 +76,45 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     kapt("androidx.room:room-compiler:$roomVersion")
 
-    // General Android Views (AppCompat, ConstraintLayout) - נשאר לתמיכה במסכים ישנים/דיאלוגים
-    // שים לב: ה-Material dependency הופיע פעמיים בגרסה הקודמת. השארתי רק אחת.
+    // General Android Views
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
-    // ========== Jetpack Compose & UI ==========
-
-    // Compose Bill of Materials (BOM) - מנהל את גרסאות הקומפוז עבורך
-    // נשאר בגרסה הקיימת שלך: 2024.02.01
+    // Jetpack Compose & UI
     implementation(platform("androidx.compose:compose-bom:2024.02.01"))
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.02.01"))
-
-    // Compose Core Dependencies
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended") // עבור אייקונים מורחבים
-
-    // Compose Tooling & Testing
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // ========== Lifecycle & Navigation ==========
-
-    // Lifecycle (עבור ON_RESUME, ON_PAUSE ו-DisposableEffect)
+    // Lifecycle & Navigation
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0") // Runtime Compose
-
-    // ViewModel integration for Compose (עבור hiltViewModel() ו-collectAsStateWithLifecycle)
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
-
-    // Navigation (Compose)
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
-
-    // ========== Hilt & Utilities ==========
 
     // Hilt
     implementation("com.google.dagger:hilt-android:2.50")
     kapt("com.google.dagger:hilt-compiler:2.50")
 
-    // JSON Serialization
+    // JSON & Network (Ktor)
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("io.ktor:ktor-client-core:$ktorVersion")
+    implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
+    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
 
     // Security
     implementation("at.favre.lib:bcrypt:0.10.2")
 
-    // Accompanist (עבור ציור Drawables ב-Compose)
+    // Accompanist
     implementation("com.google.accompanist:accompanist-drawablepainter:0.32.0")
 
     // Testing
@@ -134,6 +122,8 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // date for kiosk
+    implementation("com.kosherjava:zmanim:2.5.0")
 }
 
 kapt {

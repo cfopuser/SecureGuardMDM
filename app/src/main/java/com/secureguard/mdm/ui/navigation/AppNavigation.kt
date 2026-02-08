@@ -1,6 +1,7 @@
 package com.secureguard.mdm.ui.navigation
 
 import android.content.Context
+import android.content.Intent
 import android.app.admin.DevicePolicyManager
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +18,6 @@ import com.secureguard.mdm.appblocker.ui.AppSelectionScreen
 import com.secureguard.mdm.appblocker.ui.BlockedAppsScreen
 import com.secureguard.mdm.data.repository.SettingsRepository
 import com.secureguard.mdm.kiosk.ui.KioskAppSelectionScreen
-import com.secureguard.mdm.kiosk.ui.KioskCustomizationScreen
 import com.secureguard.mdm.kiosk.ui.KioskManagementScreen
 import com.secureguard.mdm.ui.screens.changepassword.ChangePasswordScreen
 import com.secureguard.mdm.ui.screens.dashboard.DashboardScreen
@@ -39,13 +39,13 @@ object Routes {
     const val FRP_SETTINGS = "frp_settings"
     const val KIOSK_MANAGEMENT = "kiosk_management"
     const val KIOSK_APP_SELECTION = "kiosk_app_selection"
-    const val KIOSK_CUSTOMIZATION = "kiosk_customization"
 }
 
 @Composable
 fun AppNavigation(
     settingsRepository: SettingsRepository = hiltViewModel<DummyViewModel>().settingsRepository,
-    startDestinationOverride: String? = null
+    startDestinationOverride: String? = null,
+    isFromKiosk: Boolean = false
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -105,17 +105,23 @@ fun AppNavigation(
             }
             composable(Routes.KIOSK_MANAGEMENT) {
                 KioskManagementScreen(
-                    onNavigateBack = { navController.popBackStack() },
+                    isFromKiosk = isFromKiosk,
+                    onNavigateBack = {
+                        if (isFromKiosk) {
+                            val intent = Intent(context, com.secureguard.mdm.kiosk.ui.KioskActivity::class.java).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            }
+                            context.startActivity(intent)
+                            (context as? android.app.Activity)?.finish()
+                        } else {
+                            navController.popBackStack()
+                        }
+                    },
                     onNavigateTo = { route -> navController.navigate(route) }
                 )
             }
             composable(Routes.KIOSK_APP_SELECTION) {
                 KioskAppSelectionScreen(
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-            composable(Routes.KIOSK_CUSTOMIZATION) {
-                KioskCustomizationScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

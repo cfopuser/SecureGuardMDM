@@ -5,7 +5,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class PreferencesManager @Inject constructor(private val prefs: SharedPreferences) {
+class PreferencesManager @Inject constructor(internal val prefs: SharedPreferences) {
 
     fun saveString(key: String, value: String?) = prefs.edit().putString(key, value).apply()
     fun loadString(key: String, defaultValue: String?): String? = prefs.getString(key, defaultValue)
@@ -21,6 +21,7 @@ class PreferencesManager @Inject constructor(private val prefs: SharedPreference
         const val KEY_PASSWORD_HASH = "password_hash"
         const val KEY_IS_SETUP_COMPLETE = "is_setup_complete"
         const val KEY_BLOCKED_APP_PACKAGES = "blocked_app_packages"
+        const val KEY_SUSPENDED_APP_PACKAGES = "suspended_app_packages"
         const val KEY_ORIGINAL_DIALER_PACKAGE = "original_dialer_package"
         const val KEY_CUSTOM_FRP_IDS = "custom_frp_ids"
         const val KEY_AUTO_UPDATE_CHECK_ENABLED = "auto_update_check_enabled"
@@ -30,6 +31,7 @@ class PreferencesManager @Inject constructor(private val prefs: SharedPreference
         const val KEY_UI_PREF_USE_CHECKBOX = "ui_pref_use_checkbox"
         const val KEY_UI_PREF_SHOW_CONTACT_EMAIL = "ui_pref_show_contact_email"
         const val KEY_UPDATE_PREF_DISABLE_ALL_UPDATES = "update_pref_disable_all_updates"
+        const val KEY_UPDATE_CHANNEL = "update_channel"
         const val KEY_SETTINGS_LOCKED_PERMANENTLY = "settings_locked_permanently"
         const val KEY_ALLOW_MANUAL_UPDATE_WHEN_LOCKED = "allow_manual_update_when_locked"
         const val KEY_SHOW_BOOT_TOAST = "show_boot_toast"
@@ -47,5 +49,8 @@ class PreferencesManager @Inject constructor(private val prefs: SharedPreference
         const val KEY_KIOSK_PRIMARY_COLOR = "kiosk_primary_color"
         const val KEY_KIOSK_BLOCKED_LAUNCHER_PKG = "kiosk_blocked_launcher_pkg"
         const val KEY_KIOSK_ALLOW_SETTINGS_IN_LOCK_TASK = "kiosk_allow_settings_in_lock_task"
+        const val KEY_CHOSEN_HOME_LAUNCHER_PKG = "chosen_home_launcher_pkg"
+        const val KEY_DONT_SHOW_HOME_CHOICE_AGAIN = "dont_show_home_choice_again"
+        const val KEY_KIOSK_APP_MONITOR_ENABLED = "kiosk_app_monitor_enabled"
     }
 }

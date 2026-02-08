@@ -1,6 +1,7 @@
 package com.secureguard.mdm.data.repository
 
 import com.secureguard.mdm.data.db.BlockedAppCache
+import kotlinx.coroutines.flow.Flow
 
 interface SettingsRepository {
     // --- פעולות על הגדרות כלליות ---
@@ -39,6 +40,10 @@ interface SettingsRepository {
     suspend fun getBlockedAppPackages(): Set<String>
     suspend fun setBlockedAppPackages(packageNames: Set<String>)
 
+    // --- פעולות על רשימת שמות החבילה המושעות (מקור האמת) ---
+    suspend fun getSuspendedAppPackages(): Set<String>
+    suspend fun setSuspendedAppPackages(packageNames: Set<String>)
+
     // --- פעולות על מטמון פרטי האפליקציות החסומות (Room) ---
     suspend fun getBlockedAppsCache(): List<BlockedAppCache>
     suspend fun addAppToCache(appCache: BlockedAppCache)
@@ -68,5 +73,18 @@ interface SettingsRepository {
     suspend fun setKioskLayoutJson(json: String?)
     suspend fun isKioskSettingsInLockTaskEnabled(): Boolean
     suspend fun setKioskSettingsInLockTaskEnabled(isEnabled: Boolean)
+    suspend fun getChosenHomeLauncherPackage(): String?
+    suspend fun setChosenHomeLauncherPackage(packageName: String?)
+    suspend fun shouldNotShowHomeChoiceAgain(): Boolean
+    suspend fun setDontShowHomeChoiceAgain(dontShow: Boolean)
 
+    suspend fun isKioskAppMonitorEnabled(): Boolean
+    suspend fun setKioskAppMonitorEnabled(isEnabled: Boolean)
+
+    // --- הוספת זרמים (Flows) לעדכון חי ---
+    fun getKioskEnabledFlow(): Flow<Boolean>
+    fun getKioskAppPackagesFlow(): Flow<Set<String>>
+    fun getKioskTitleFlow(): Flow<String>
+    fun getKioskBackgroundColorFlow(): Flow<Int>
+    fun getKioskPrimaryColorFlow(): Flow<Int>
 }

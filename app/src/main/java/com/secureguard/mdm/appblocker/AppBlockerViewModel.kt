@@ -9,7 +9,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -30,6 +32,17 @@ import java.io.FileOutputStream
 import javax.inject.Inject
 
 private const val TAG = "AppBlockerViewModel"
+private const val OWN_PACKAGE = "com.secureguard.mdm"
+
+// Critical system apps that should not be blocked as they may cause device instability
+private val CRITICAL_SYSTEM_PACKAGES = setOf(
+    "com.android.settings",           // Settings app
+    "com.android.systemui",          // System UI
+    "android",                       // Android System
+    "com.google.android.gsf",         // Google Services Framework
+    "com.android.launcher3",          // Default launcher
+    "com.google.android.launcher",    // Google launcher
+)
 
 @HiltViewModel
 class AppBlockerViewModel @Inject constructor(
@@ -43,6 +56,7 @@ class AppBlockerViewModel @Inject constructor(
 
     private var allAppsMasterList: List<AppInfo> = emptyList()
     private var allBlockedAppsMasterList: List<AppInfo> = emptyList()
+    private var allSuspendedAppsMasterList: List<AppInfo> = emptyList()
 
     private val adminComponentName by lazy { SecureGuardDeviceAdminReceiver.getComponentName(context) }
     private val iconsDir by lazy { File(context.filesDir, "app_icons").apply { mkdirs() } }
@@ -55,12 +69,16 @@ class AppBlockerViewModel @Inject constructor(
         when (event) {
             is AppBlockerEvent.OnFilterChanged -> onFilterChanged(event.newFilter)
             is AppBlockerEvent.OnAppSelectionChanged -> onAppSelectionChanged(event.packageName, event.isBlocked)
+            is AppBlockerEvent.OnAppSuspensionChanged -> onAppSuspensionChanged(event.packageName, event.isSuspended)
             is AppBlockerEvent.OnSaveRequest -> saveAndApplyChanges() // קריאה ישירה
             is AppBlockerEvent.OnUnblockSelectedRequest -> unblockSelectedApps() // קריאה ישירה
+            is AppBlockerEvent.OnUnsuspendSelectedRequest -> unsuspendSelectedApps() // קריאה ישירה
             is AppBlockerEvent.OnAddPackageManually -> addPackageManually(event.packageName)
             is AppBlockerEvent.OnToggleUnblockSelection -> toggleUnblockSelection(event.packageName)
+            is AppBlockerEvent.OnToggleUnsuspendSelection -> toggleUnsuspendSelection(event.packageName)
             is AppBlockerEvent.OnSearchQueryChanged -> onSearchQueryChanged(event.query)
             is AppBlockerEvent.OnDismissPasswordPrompt -> { /* No longer needed */ }
+            is AppBlockerEvent.OnDismissCriticalAppsWarning -> dismissCriticalAppsWarning()
         }
     }
 
@@ -69,8 +87,10 @@ class AppBlockerViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, searchQuery = "") }
             allAppsMasterList = getInstalledApps()
             allBlockedAppsMasterList = getBlockedAppsFromCache()
+            allSuspendedAppsMasterList = getSuspendedAppsFromCache()
             applyFilter()
             applyBlockedAppsFilter()
+            applySuspendedAppsFilter()
             _uiState.update { it.copy(isLoading = false) }
         }
     }
@@ -86,6 +106,7 @@ class AppBlockerViewModel @Inject constructor(
         _uiState.update { it.copy(searchQuery = query) }
         applyFilter()
         applyBlockedAppsFilter()
+        applySuspendedAppsFilter()
     }
 
     private fun applyFilter() {
@@ -116,6 +137,18 @@ class AppBlockerViewModel @Inject constructor(
         _uiState.update { it.copy(displayedBlockedApps = filteredList) }
     }
 
+    private fun applySuspendedAppsFilter() {
+        val query = _uiState.value.searchQuery.lowercase()
+        val filteredList = if (query.isNotBlank()) {
+            allSuspendedAppsMasterList.filter {
+                it.appName.lowercase().contains(query) || it.packageName.lowercase().contains(query)
+            }
+        } else {
+            allSuspendedAppsMasterList
+        }
+        _uiState.update { it.copy(displayedSuspendedApps = filteredList) }
+    }
+
     private suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
         val pm = context.packageManager
         val launcherIntent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -123,15 +156,18 @@ class AppBlockerViewModel @Inject constructor(
 
         val allInstalledAppsInfo = pm.getInstalledApplications(PackageManager.GET_META_DATA)
         val blockedAppPackages = settingsRepository.getBlockedAppPackages()
+        val suspendedAppPackages = settingsRepository.getSuspendedAppPackages()
         allInstalledAppsInfo.map { appInfo ->
+            if (appInfo.packageName == OWN_PACKAGE) return@map null
             AppInfo(
                 appName = appInfo.loadLabel(pm).toString(), packageName = appInfo.packageName,
                 icon = appInfo.loadIcon(pm), isBlocked = blockedAppPackages.contains(appInfo.packageName),
                 isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
                 isLauncherApp = launcherPackages.contains(appInfo.packageName),
+                isSuspended = suspendedAppPackages.contains(appInfo.packageName),
                 isInstalled = true
             )
-        }.sortedBy { it.appName.lowercase() }
+        }.filterNotNull().sortedBy { it.appName.lowercase() }
     }
 
     private suspend fun getBlockedAppsFromCache(): List<AppInfo> = withContext(Dispatchers.IO) {
@@ -140,6 +176,7 @@ class AppBlockerViewModel @Inject constructor(
         val launcherPackages = pm.queryIntentActivities(launcherIntent, 0).map { it.activityInfo.packageName }.toSet()
 
         val blockedPackages = settingsRepository.getBlockedAppPackages()
+        val suspendedPackages = settingsRepository.getSuspendedAppPackages()
         val cachedApps = settingsRepository.getBlockedAppsCache().associateBy { it.packageName }
         blockedPackages.mapNotNull { packageName ->
             try {
@@ -155,6 +192,38 @@ class AppBlockerViewModel @Inject constructor(
                     isBlocked = true,
                     isSystemApp = appInfo?.let { (it.flags and ApplicationInfo.FLAG_SYSTEM) != 0 } ?: false,
                     isLauncherApp = launcherPackages.contains(packageName),
+                    isSuspended = suspendedPackages.contains(packageName),
+                    isInstalled = appInfo != null
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not fully resolve app info for $packageName", e)
+                null
+            }
+        }.sortedBy { it.appName.lowercase() }
+    }
+
+    private suspend fun getSuspendedAppsFromCache(): List<AppInfo> = withContext(Dispatchers.IO) {
+        val pm = context.packageManager
+        val launcherIntent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
+        val launcherPackages = pm.queryIntentActivities(launcherIntent, 0).map { it.activityInfo.packageName }.toSet()
+
+        val suspendedPackages = settingsRepository.getSuspendedAppPackages()
+        val cachedApps = settingsRepository.getBlockedAppsCache().associateBy { it.packageName }
+        suspendedPackages.mapNotNull { packageName ->
+            try {
+                val appInfo = try {
+                    pm.getApplicationInfo(packageName, 0)
+                } catch (e: Exception) { null }
+
+                val cachedInfo = cachedApps[packageName]
+                AppInfo(
+                    appName = appInfo?.loadLabel(pm)?.toString() ?: cachedInfo?.appName ?: packageName,
+                    packageName = packageName,
+                    icon = cachedInfo?.let { loadIconFromFile(it.iconPath) } ?: appInfo?.loadIcon(pm) ?: createDefaultIcon(),
+                    isBlocked = false,
+                    isSystemApp = appInfo?.let { (it.flags and ApplicationInfo.FLAG_SYSTEM) != 0 } ?: false,
+                    isLauncherApp = launcherPackages.contains(packageName),
+                    isSuspended = true,
                     isInstalled = appInfo != null
                 )
             } catch (e: Exception) {
@@ -166,7 +235,19 @@ class AppBlockerViewModel @Inject constructor(
 
     private fun onAppSelectionChanged(packageName: String, isBlocked: Boolean) {
         allAppsMasterList = allAppsMasterList.map {
-            if (it.packageName == packageName) it.copy(isBlocked = isBlocked) else it
+            if (it.packageName == packageName) it.copy(isBlocked = isBlocked, isSuspended = if (isBlocked) false else it.isSuspended) else it
+        }
+        applyFilter()
+    }
+
+    private fun onAppSuspensionChanged(packageName: String, isSuspended: Boolean) {
+        if (isSuspended && CRITICAL_SYSTEM_PACKAGES.contains(packageName)) {
+            val criticalAppInfos = allAppsMasterList.filter { it.packageName == packageName }
+            _uiState.update { it.copy(showCriticalAppsWarning = true, criticalAppsDetected = criticalAppInfos) }
+            return
+        }
+        allAppsMasterList = allAppsMasterList.map {
+            if (it.packageName == packageName) it.copy(isSuspended = isSuspended, isBlocked = if (isSuspended) false else it.isBlocked) else it
         }
         applyFilter()
     }
@@ -174,17 +255,50 @@ class AppBlockerViewModel @Inject constructor(
     private fun saveAndApplyChanges() {
         viewModelScope.launch(Dispatchers.IO) {
             val oldBlockedSet = settingsRepository.getBlockedAppPackages()
+            val oldSuspendedSet = settingsRepository.getSuspendedAppPackages()
             val newlySelectedApps = allAppsMasterList.filter { it.isBlocked }.map { it.packageName }.toSet()
+            val newlySuspendedApps = allAppsMasterList.filter { it.isSuspended }.map { it.packageName }.toSet()
             val finalBlockedSet = oldBlockedSet + newlySelectedApps
 
-            if (finalBlockedSet == oldBlockedSet) {
+            val finalSuspendedSet = (oldSuspendedSet + newlySuspendedApps) - finalBlockedSet
+
+            val combinedSet = finalBlockedSet + finalSuspendedSet
+            if (combinedSet.contains(OWN_PACKAGE)) {
+                Log.w(TAG, "Skipping own package from block/suspend lists")
+            }
+
+            if (finalBlockedSet == oldBlockedSet && finalSuspendedSet == oldSuspendedSet) {
                 Log.d(TAG, "No changes to save.")
                 return@launch
             }
 
-            settingsRepository.setBlockedAppPackages(finalBlockedSet)
-            val appsToCache = allAppsMasterList.filter { finalBlockedSet.contains(it.packageName) && !oldBlockedSet.contains(it.packageName) }
+            // Check for critical system apps (block/suspend)
+            val criticalApps = (newlySelectedApps + newlySuspendedApps).filter { CRITICAL_SYSTEM_PACKAGES.contains(it) }
+            if (criticalApps.isNotEmpty()) {
+                val criticalAppInfos = allAppsMasterList.filter { criticalApps.contains(it.packageName) }
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(showCriticalAppsWarning = true, criticalAppsDetected = criticalAppInfos) }
+                }
+                return@launch
+            }
+
+            settingsRepository.setBlockedAppPackages(finalBlockedSet - OWN_PACKAGE)
+            settingsRepository.setSuspendedAppPackages(finalSuspendedSet - OWN_PACKAGE)
+
+            val appsToCache = allAppsMasterList.filter {
+                combinedSet.contains(it.packageName) && !oldBlockedSet.contains(it.packageName) && !oldSuspendedSet.contains(it.packageName)
+            }
             appsToCache.forEach { cacheAppInfo(it) }
+
+            val packagesToUnsuspend = oldSuspendedSet - finalSuspendedSet
+            packagesToUnsuspend.forEach { packageName ->
+                try {
+                    dpm.setPackagesSuspended(adminComponentName, arrayOf(packageName), false)
+                    Log.d(TAG, "Set suspended state for $packageName to false (auto)")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not unsuspend $packageName", e)
+                }
+            }
 
             newlySelectedApps.forEach { packageName ->
                 try {
@@ -192,6 +306,15 @@ class AppBlockerViewModel @Inject constructor(
                     Log.d(TAG, "Set hidden state for $packageName to true")
                 } catch (e: Exception) {
                     Log.w(TAG, "Could not change hidden state for $packageName", e)
+                }
+            }
+
+            newlySuspendedApps.forEach { packageName ->
+                try {
+                    dpm.setPackagesSuspended(adminComponentName, arrayOf(packageName), true)
+                    Log.d(TAG, "Set suspended state for $packageName to true")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not change suspended state for $packageName", e)
                 }
             }
 
@@ -203,6 +326,12 @@ class AppBlockerViewModel @Inject constructor(
         val currentSelection = _uiState.value.selectionForUnblock.toMutableSet()
         if (currentSelection.contains(packageName)) currentSelection.remove(packageName) else currentSelection.add(packageName)
         _uiState.update { it.copy(selectionForUnblock = currentSelection) }
+    }
+
+    private fun toggleUnsuspendSelection(packageName: String) {
+        val currentSelection = _uiState.value.selectionForUnsuspend.toMutableSet()
+        if (currentSelection.contains(packageName)) currentSelection.remove(packageName) else currentSelection.add(packageName)
+        _uiState.update { it.copy(selectionForUnsuspend = currentSelection) }
     }
 
     private fun unblockSelectedApps() {
@@ -228,12 +357,64 @@ class AppBlockerViewModel @Inject constructor(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
+    private fun unsuspendSelectedApps() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val packagesToUnsuspend = _uiState.value.selectionForUnsuspend
+            if (packagesToUnsuspend.isEmpty()) return@launch
+            val currentSuspended = settingsRepository.getSuspendedAppPackages().toMutableSet()
+            currentSuspended.removeAll(packagesToUnsuspend)
+            settingsRepository.setSuspendedAppPackages(currentSuspended)
+            removeAppsFromCache(packagesToUnsuspend.toList())
+            packagesToUnsuspend.forEach { packageName ->
+                try {
+                    dpm.setPackagesSuspended(adminComponentName, arrayOf(packageName), false)
+                    Log.d(TAG, "Set suspended state for $packageName to false (unsuspend)")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not unsuspend $packageName", e)
+                }
+            }
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(selectionForUnsuspend = emptySet()) }
+                loadAllData()
+            }
+        }
+    }
+
     fun addPackageManually(packageName: String): String? {
         if (packageName.isBlank()) return "שם החבילה לא יכול להיות ריק."
+        if (packageName == OWN_PACKAGE) return "לא ניתן להוסיף את אפליקציית המערכת לרשימה."
+
+        // Check if it's a critical system app
+        if (CRITICAL_SYSTEM_PACKAGES.contains(packageName)) {
+            try {
+                val pm = context.packageManager
+                val appInfo = pm.getApplicationInfo(packageName, 0)
+                val criticalApp = AppInfo(
+                    appName = appInfo.loadLabel(pm).toString(),
+                    packageName = appInfo.packageName,
+                    icon = appInfo.loadIcon(pm),
+                    isBlocked = false,
+                    isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                    isLauncherApp = false,
+                    isSuspended = false,
+                    isInstalled = true
+                )
+                _uiState.update { it.copy(showCriticalAppsWarning = true, criticalAppsDetected = listOf(criticalApp)) }
+            } catch (e: PackageManager.NameNotFoundException) {
+                return "החבילה '$packageName' לא נמצאה במכשיר."
+            }
+            return null // Don't show error, show warning instead
+        }
+
         viewModelScope.launch {
             val currentlyBlockedPackages = settingsRepository.getBlockedAppPackages()
+            val currentlySuspendedPackages = settingsRepository.getSuspendedAppPackages()
             allAppsMasterList = allAppsMasterList.map {
-                it.copy(isBlocked = currentlyBlockedPackages.contains(it.packageName))
+                it.copy(
+                    isBlocked = currentlyBlockedPackages.contains(it.packageName),
+                    isSuspended = currentlySuspendedPackages.contains(it.packageName)
+                )
             }
         }
 
@@ -253,6 +434,7 @@ class AppBlockerViewModel @Inject constructor(
                     isBlocked = true,
                     isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
                     isLauncherApp = isLauncher,
+                    isSuspended = false,
                     isInstalled = true
                 )
                 allAppsMasterList = (allAppsMasterList + newApp).sortedBy { it.appName.lowercase() }
@@ -311,6 +493,16 @@ class AppBlockerViewModel @Inject constructor(
             Log.e(TAG, "Error saving icon to file for $packageName", e)
         }
         return null
+    }
+
+    private fun dismissCriticalAppsWarning() {
+        _uiState.update { it.copy(showCriticalAppsWarning = false, criticalAppsDetected = emptyList()) }
+        // Also reset the blocked selections for critical apps
+        val criticalPackages = CRITICAL_SYSTEM_PACKAGES
+        allAppsMasterList = allAppsMasterList.map {
+            if (criticalPackages.contains(it.packageName)) it.copy(isBlocked = false, isSuspended = false) else it
+        }
+        applyFilter()
     }
 
     private fun loadIconFromFile(path: String): Drawable? = Drawable.createFromPath(path)

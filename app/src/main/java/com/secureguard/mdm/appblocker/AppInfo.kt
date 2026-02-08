@@ -10,6 +10,7 @@ import android.graphics.drawable.Drawable
  * @param isBlocked מציין אם האפליקציה מסומנת לחסימה.
  * @param isSystemApp מציין אם זוהי אפליקציית מערכת.
  * @param isLauncherApp מציין אם זוהי אפליקציה שמופיעה ב-Launcher (מסך הבית).
+ * @param isSuspended מציין אם האפליקציה מושעית (Suspended) במקום חסומה.
  * @param isInstalled מציין אם האפליקציה מותקנת כרגע במכשיר.
  */
 data class AppInfo(
@@ -20,5 +21,6 @@ data class AppInfo(
     val isBlocked: Boolean,
     val isSystemApp: Boolean,
     val isLauncherApp: Boolean,
+    val isSuspended: Boolean = false,
     val isInstalled: Boolean = true
 )

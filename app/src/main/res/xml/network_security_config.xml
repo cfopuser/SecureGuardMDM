@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- האלמנט הראשי שחייב לעטוף הכל -->
+<network-security-config>
+    <!-- כאן אפשר לשים כמה base-config -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- שימוש בתעודות מערכת -->
+            <certificates src="system" />
+            <!-- שימוש בתעודות משתמש -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

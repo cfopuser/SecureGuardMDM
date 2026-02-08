@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect // <-- FIX
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.getValue      // <-- FIX
 import androidx.compose.runtime.mutableStateOf  // <-- FIX
 import androidx.compose.runtime.remember      // <-- FIX
@@ -82,42 +83,63 @@ class MainActivity : ComponentActivity() {
 
             requestSpecialUsePermission()
 
+            // Check for NetGuard upgrade scenario
+            val shouldShowNetGuardDialog = checkForNetGuardUpgrade()
+
             setContent {
                 SecureGuardTheme {
                     // --- NEW: State to control the dialog visibility ---
-                    var showWriteSettingsDialog by remember { mutableStateOf(false) }
+                    var showNetGuardDialog by remember { mutableStateOf(shouldShowNetGuardDialog) }
 
                     // --- NEW: Check for permission and update state ---
                     LaunchedEffect(Unit) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                             if (!Settings.System.canWrite(this@MainActivity) && dpm.isDeviceOwnerApp(packageName)) {
-                                showWriteSettingsDialog = true
+                                val intent = Intent(
+                                    Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                                    Uri.parse("package:$packageName")
+                                )
+                                writeSettingsLauncher.launch(intent)
                             }
                         }
                     }
 
+                    val isFromKiosk = intent.getBooleanExtra("is_from_kiosk", false)
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        AppNavigation(startDestinationOverride = startDestinationOverride)
+                        AppNavigation(
+                            startDestinationOverride = startDestinationOverride,
+                            isFromKiosk = isFromKiosk
+                        )
 
-                        // --- NEW: Composable Dialog ---
-                        if (showWriteSettingsDialog) {
-                            WriteSettingsPermissionDialog(
-                                onDismiss = { showWriteSettingsDialog = false },
-                                onConfirm = {
-                                    showWriteSettingsDialog = false
-                                    val intent = Intent(
-                                        Settings.ACTION_MANAGE_WRITE_SETTINGS,
-                                        Uri.parse("package:$packageName")
-                                    )
-                                    writeSettingsLauncher.launch(intent)
+                        // --- WRITE_SETTINGS is requested via system screen ---
+
+                        if (showNetGuardDialog) {
+                            NetGuardUpgradeDialog(
+                                onDismiss = { showNetGuardDialog = false },
+                                onUninstall = {
+                                    showNetGuardDialog = false
+                                    uninstallNetGuard()
                                 }
                             )
                         }
                     }
                 }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!Settings.System.canWrite(this) && dpm.isDeviceOwnerApp(packageName)) {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                    Uri.parse("package:$packageName")
+                )
+                writeSettingsLauncher.launch(intent)
             }
         }
     }
@@ -136,6 +158,51 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun checkForNetGuardUpgrade(): Boolean {
+        // Check if NetGuard is installed and was previously protected
+        val netGuardPackage = "eu.faircode.netguard"
+        val isNetGuardInstalled = try {
+            packageManager.getPackageInfo(netGuardPackage, 0)
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
+
+        if (isNetGuardInstalled) {
+            // Remove protection first (as per requirements)
+            val adminComponentName = SecureGuardDeviceAdminReceiver.getComponentName(this)
+            try {
+                dpm.setUninstallBlocked(adminComponentName, netGuardPackage, false)
+                Log.d("MainActivity", "Removed NetGuard uninstall protection")
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Failed to remove NetGuard protection", e)
+            }
+
+            return true // Show dialog
+        }
+        return false // Don't show dialog
+    }
+
+    private fun uninstallNetGuard() {
+        val netGuardPackage = "eu.faircode.netguard"
+        val adminComponentName = SecureGuardDeviceAdminReceiver.getComponentName(this)
+
+        lifecycleScope.launch {
+            try {
+                // Use MDM to uninstall NetGuard
+                dpm.setUninstallBlocked(adminComponentName, netGuardPackage, false)
+                val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE).apply {
+                    data = Uri.parse("package:$netGuardPackage")
+                    putExtra(Intent.EXTRA_RETURN_RESULT, true)
+                }
+                startActivity(intent)
+                Log.d("MainActivity", "Initiated NetGuard uninstall")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to uninstall NetGuard", e)
+            }
+        }
+    }
 }
 
 // --- NEW: Composable function for the permission dialog ---
@@ -143,16 +210,38 @@ class MainActivity : ComponentActivity() {
 private fun WriteSettingsPermissionDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("נדרשת הרשאה נוספת") },
-        text = { Text("כדי שכפתורי ה-Wi-Fi, הבלוטות' וסיבוב המסך יעבדו ממצב קיוסק, יש להעניק לאפליקציה הרשאה לשנות הגדרות מערכת.\n\nאם לא תאשר, רק הפונקציונליות של כפתורים אלו תהיה מוגבלת.") },
+        title = { Text(stringResource(id = R.string.permission_dialog_title)) },
+        text = { Text(stringResource(id = R.string.permission_dialog_message)) },
         confirmButton = {
             Button(onClick = onConfirm) {
-                Text("הענק הרשאה")
+                Text(stringResource(id = R.string.permission_dialog_button_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("לא עכשיו")
+                Text(stringResource(id = R.string.permission_dialog_button_cancel))
+            }
+        }
+    )
+}
+
+// --- NEW: Composable function for the NetGuard upgrade dialog ---
+@Composable
+private fun NetGuardUpgradeDialog(onDismiss: () -> Unit, onUninstall: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(id = R.string.netguard_upgrade_dialog_title)) },
+        text = {
+            Text(stringResource(id = R.string.netguard_upgrade_dialog_message))
+        },
+        confirmButton = {
+            Button(onClick = onUninstall) {
+                Text(stringResource(id = R.string.netguard_upgrade_dialog_button_uninstall))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(id = R.string.netguard_upgrade_dialog_button_keep))
             }
         }
     )

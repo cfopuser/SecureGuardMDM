@@ -4,6 +4,13 @@ import com.secureguard.mdm.R
 import com.secureguard.mdm.settingsfeatures.api.*
 import com.secureguard.mdm.ui.navigation.Routes
 
+object UpdateChannelAction : ActionSetting {
+    override val id: String = "action_update_channel"
+    override val titleRes: Int = R.string.update_channel_button
+    override val iconRes: Int = R.drawable.ic_system_update
+    override val category: SettingCategory = SettingCategory.ADVANCED_ACTIONS
+}
+
 object NavigateToFrpSetting : NavigationalSetting {
     override val id: String = "navigate_frp_settings"
     override val titleRes: Int = R.string.settings_item_frp
@@ -34,9 +41,9 @@ object LockSettingsAction : DestructiveActionSetting {
     override val category: SettingCategory = SettingCategory.ADVANCED_ACTIONS
 }
 
-object RemoveProtectionAction : DestructiveActionSetting {
-    override val id: String = "action_remove_protection"
-    override val titleRes: Int = R.string.settings_item_remove_protection
+object RemovalOptionsAction : DestructiveActionSetting {
+    override val id: String = "action_removal_options"
+    override val titleRes: Int = R.string.settings_item_removal_options
     override val iconRes: Int = R.drawable.ic_uninstall_off
     override val category: SettingCategory = SettingCategory.ADVANCED_ACTIONS
 }

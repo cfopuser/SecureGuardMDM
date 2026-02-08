@@ -22,7 +22,9 @@ data class FeatureToggle(
 // Data class to hold a settings feature and its current state (e.g., isChecked for toggles)
 data class SettingItemModel(
     val feature: SettingsFeature,
-    val isChecked: Boolean = false
+    val isChecked: Boolean = false,
+    val isSupported: Boolean = true,
+    val requiredApi: Int = 0
 )
 
 data class SettingsUiState(
@@ -46,6 +48,20 @@ sealed class SettingsEvent {
     data class OnToggleSettingChanged(val settingId: String, val isChecked: Boolean) : SettingsEvent()
     data class OnActionSettingClicked(val settingId: String) : SettingsEvent()
     data class OnLockSettingsConfirmed(val allowManualUpdate: Boolean) : SettingsEvent()
+
+    // Removal options dialog events
+    object OnRegularRemovalSelected : SettingsEvent()
+    object OnTransferOwnershipSelected : SettingsEvent()
+    object OnDismissRemovalOptionsDialog : SettingsEvent()
+
+    // Device admin selection events
+    object OnDeviceAdminSelectionDismissed : SettingsEvent()
+    data class OnDeviceAdminSelected(val deviceAdminItem: DeviceAdminItem) : SettingsEvent()
+    object OnDeviceAdminTransferConfirmed : SettingsEvent()
+    object OnDeviceAdminTransferCancelled : SettingsEvent()
+
+    // Error dialog events
+    object OnErrorDialogDismissed : SettingsEvent()
 
     // General events
     object OnSaveClick : SettingsEvent()

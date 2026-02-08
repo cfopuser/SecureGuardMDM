@@ -2,10 +2,9 @@
 <resources>
     <!-- app info -->
     <string name="app_name">A Bloq</string>
-    <string name="app_version_name_for_logic" translatable="false">0.4.5</string> <!-- מספר הגרסה הלוגי להשוואה -->
+    <string name="app_version_name_for_logic" translatable="false">0.4.6</string>
     <string name="device_admin_description">מאפשר ל-A Bloq לאכוף מדיניות אבטחה על המכשיר.</string>
     <string name="app_version">בטא 0.4.5</string>
-    <!-- App Info Dialog -->
     <string name="unofficial_warning_title">אזהרת אבטחה</string>
     <string name="unofficial_warning_message">אפליקציה זו אינה רשמית ונעשו בה שינויים!</string>
 
@@ -40,6 +39,7 @@
     <string name="dashboard_button_update_app">עדכון אפליקציה</string>
     <string name="dashboard_status_protected">מוגן</string>
     <string name="dashboard_status_unprotected">לא מוגן</string>
+    <string name="dashboard_button_about_app">אודות האפליקציה</string>
 
     <!-- Settings Screen -->
     <string name="settings_title">ניהול הגדרות</string>
@@ -48,6 +48,7 @@
     <string name="settings_unsupported_device_details">דורש אנדרואיד %1$d (%2$s) ומעלה.</string>
     <string name="settings_item_change_password">שנה סיסמת ניהול</string>
     <string name="settings_item_remove_protection">הסר את A Bloq וההגנות</string>
+    <string name="settings_item_removal_options">אפשרויות הסרה לאייבלוק</string>
     <string name="settings_remove_protection_dialog_title">האם אתה בטוח?</string>
     <string name="settings_remove_protection_dialog_message">פעולה זו תסיר את כל ההגנות, תמחק את הרשאות הניהול של האפליקציה ותבקש ממך להסיר את התקנתה. לא ניתן לבטל פעולה זו.</string>
     <string name="settings_item_select_apps_to_block">בחר אפליקציות לחסימה</string>
@@ -81,11 +82,12 @@
     <string name="dialog_changes_saved_successfully">ההגדרות נשמרו בהצלחה!</string>
 
     <!-- Secure Update & Auto Update -->
-    <string name="app_build_status" translatable="false">רשמית</string> <!-- שנה ל"לא רשמית" בגרסאות פיתוח -->
+    <string name="app_build_status" translatable="false">רשמית</string>
+
+
     <string name="update_version_url" translatable="false">https://raw.githubusercontent.com/sesese1234/SecureGuardMDM/refs/heads/main/version.txt</string>
     <string name="update_changelog_url" translatable="false">https://raw.githubusercontent.com/sesese1234/SecureGuardMDM/refs/heads/main/changes.txt</string>
     <string name="update_apk_download_url" translatable="false">https://github.com/sesese1234/SecureGuardMDM/raw/refs/heads/main/app/release/Abloq-release.apk</string>
-    //https://github.com/sesese1234/SecureGuardMDM/releases/download/Beta/Abloq-release.apk
     <string name="update_dialog_title">עדכון זמין</string>
     <string name="update_dialog_changelog_title">יומן שינויים:</string>
     <string name="update_dialog_button_download">הורד והתקן</string>
@@ -99,7 +101,6 @@
     <string name="update_error_no_signature">לא נמצאה חתימה בקובץ ה-APK.</string>
     <string name="update_error_verification_failed">אימות העדכון נכשל. הקובץ נמחק.</string>
     <string name="update_error_download_failed">הורדת העדכון נכשלה.</string>
-
 
     <!-- Feature Titles & Descriptions -->
     <string name="feature_block_incoming_calls_title">חסימת טלפון לגמרי (שיחות)</string>
@@ -196,13 +197,10 @@
     <string name="feature_block_content_capture_description">מונעת מאפליקציות צד שלישי ללכוד את תוכן המסך לצורך ניתוח.</string>
     <string name="feature_block_system_error_dialogs_title">חסימת דיאלוג שגיאות מערכת</string>
     <string name="feature_block_system_error_dialogs_description">מונעת הצגת חלונות קופצים של שגיאות מערכת (כמו "אפליקציה קרסה").</string>
-    <!-- Feature: Block Password Change (via impossible policy) -->
     <string name="feature_block_password_change_title">חסימת שינוי סיסמה</string>
     <string name="feature_block_password_change_description">מונעת שינוי סיסמת המכשיר</string>
-    <!-- Toasts for NetGuard -->
     <string name="toast_installing_netguard">מתקין את NetGuard...</string>
     <string name="toast_netguard_can_be_uninstalled">NetGuard אינו מוגן יותר. כעת ניתן למחוק את האפליקציה.</string>
-    <!-- NEW NetGuard and VPN Features -->
     <string name="feature_block_vpn_settings_title">חסימת הגדרות VPN</string>
     <string name="feature_block_vpn_settings_description">מונע מהמשתמש לגשת למסך הגדרות ה-VPN של המכשיר.</string>
     <string name="feature_install_netguard_title">התקן והגן על NetGuard</string>
@@ -210,10 +208,8 @@
     <string name="feature_force_netguard_vpn_title">כפה את NetGuard כ-VPN תמידי</string>
     <string name="feature_force_netguard_vpn_description">מגדיר את NetGuard כ-VPN במצב Always-On עם נעילה.</string>
     <string name="conflict_reason_netguard_installed">מושבת מכיוון ש-NetGuard מותקן</string>
-    <!-- Feature: FRP Protection -->
     <string name="feature_frp_protection_title">הגנת איפוס (FRP)</string>
     <string name="feature_frp_protection_description">מונע איפוס המכשיר על ידי נעילתו לחשבונות Google מוגדרים מראש.</string>
-    <!-- Category Titles -->
     <string name="category_device_management">ניהול מכשיר כללי</string>
     <string name="category_hardware">חומרה וחיישנים</string>
     <string name="category_network">רשת ותקשורת</string>
@@ -222,16 +218,12 @@
     <string name="category_calls_sms">שיחות והודעות</string>
     <string name="category_ui">ממשק משתמש</string>
     <string name="category_advanced">הגדרות מערכת מתקדמות</string>
-    <!-- FRP Warning -->
     <string name="feature_frp_protection_experimental_tag">(נסיוני)</string>
     <string name="frp_warning_dialog_title">אזהרה: תכונה נסיונית</string>
     <string name="frp_warning_dialog_message">הפעלת הגנת FRP היא פעולה מתקדמת שעלולה, במקרים נדירים או בתצורה שגויה, לנעול את המכשיר לצמיתות ולדרוש התערבות יצרן. האם אתה בטוח שברצונך להמשיך?</string>
-    <!-- App Info Dialog -->
     <string name="contact_email">c51525355@gmail.com</string>
 
-    <!-- Settings Screen - Update Settings -->
     <string name="settings_item_enable_updates">אפשר עדכונים לאפליקציה</string>
-    <!-- Settings Screen - New Category -->
     <string name="category_ui_and_behavior">התאמה אישית והתנהגות</string>
     <string name="settings_item_toggle_position">הצג פקדים בצד ימין</string>
     <string name="settings_item_use_checkbox">השתמש בתיבות סימון (במקום מתגים)</string>
@@ -241,41 +233,45 @@
     <string name="settings_lock_dialog_title">אזהרה: פעולה בלתי הפיכה</string>
     <string name="settings_lock_dialog_message">נעילת ההגדרות תסיר לצמיתות את הגישה למסך זה ותשבית את כל העדכונים העתידיים. לא ניתן לבטל פעולה זו. האם אתה בטוח שברצונך להמשיך?</string>
 
-    <!-- setting lock -->
     <string name="settings_lock_dialog_allow_manual_update">השאר עדכון ידני מאובטח פעיל</string>
-    <!-- Manual Update Check -->
     <string name="check_for_updates">בדוק אם יש עדכון</string>
     <string name="update_check_checking">בודק עדכונים...</string>
     <string name="update_check_no_update">יש לך את הגרסה העדכנית ביותר.</string>
-    <!-- New Settings Categories -->
     <string name="category_app_management">ניהול אפליקציות</string>
     <string name="category_advanced_actions">פעולות מתקדמות</string>
 
-    <!-- New Settings Item -->
+    <string name="update_channel_button">ערוץ עדכון</string>
+    <string name="update_settings_title">הגדרות עדכון</string>
+    <string name="update_channel_stable">ערוץ יציב</string>
+    <string name="update_channel_prebuild">ערוץ Prebuild</string>
+    <string name="update_channel_explanation_title">הסבר</string>
+    <string name="update_channel_explanation_message">מומלץ לבחור בערוץ יציב, אך אם אתה מעונין בפיצ\'רים החדשים מיד שהם יוצאים, אתה יכול לבחור בערוץ הPrebuild.</string>
     <string name="settings_item_frp">הגדר FRP מותאם אישית</string>
-    <!-- Boot Completed Notification -->
     <string name="boot_notification_message">A Bloq הופעל עם הדלקת המכשיר!</string>
     <string name="settings_item_show_boot_toast">הצג התראה בעת הפעלת המכשיר</string>
-    <!-- Kiosk Mode Strings -->
     <string name="category_kiosk_mode">מצב קיוסק</string>
     <string name="settings_item_manage_kiosk">נהל מצב קיוסק</string>
     <string name="kiosk_management_title">ניהול מצב קיוסק</string>
     <string name="kiosk_management_enable_label">הפעל מצב קיוסק</string>
     <string name="kiosk_management_enable_description">כאשר מופעל, האפליקציה תעלה ישירות ללאנצ\'ר הקיוסק הנעול.</string>
     <string name="kiosk_management_select_apps">בחר אפליקציות להצגה</string>
+    <string name="kiosk_management_monitor_label">הגבלה מחמירה</string>
+    <string name="kiosk_management_monitor_description">מונע יציאה מהאפליקציות בקיוסק גם לצורך הצגה של תמונה או משהו דומה, באופן המקסימלי</string>
+    <string name="kiosk_management_action_buttons_title">כפתורי פעולה בקיוסק</string>
+    <string name="kiosk_action_wifi">Wi‑Fi</string>
+    <string name="kiosk_action_bluetooth">Bluetooth</string>
+    <string name="kiosk_action_flashlight">פנס</string>
+    <string name="kiosk_action_volume">ווליום</string>
     <string name="kiosk_block_launcher_dialog_title">הפעלת מצב קיוסק</string>
     <string name="kiosk_block_launcher_dialog_message">האם לחסום את אפליקציית מסך הבית הנוכחית (Launcher)? חסימתה תמנע יציאה ממצב קיוסק באמצעות כפתור הבית.</string>
     <string name="kiosk_toast_disabled">מצב קיוסק בוטל.</string>
-    <!-- Kiosk Customization Screen -->
     <string name="kiosk_customization_title">התאמה אישית</string>
     <string name="kiosk_customization_header_title">כותרת עליונה</string>
     <string name="kiosk_customization_background_color">צבע רקע</string>
     <string name="kiosk_customization_accent_color">צבע מבטא (Accent)</string>
-    <!--very secret thing... -->
     <string name="kiosk_customization_date_format">פורמט תאריך</string>
     <string name="kiosk_date_format_gregorian">לועזי</string>
     <string name="kiosk_date_format_hebrew">עברי</string>
-    <!--end of very secret thing...-->
     <string name="kiosk_customization_general_settings">הגדרות כלליות</string>
     <string name="kiosk_customization_show_update_button">הצג כפתור עדכון מאובטח</string>
     <string name="kiosk_customization_bottom_bar_actions">פעולות בסרגל התחתון</string>
@@ -283,14 +279,8 @@
     <string name="folder_name_dialog_hint">הכנס שם</string>
     <string name="folder_name_dialog_create">צור</string>
 
-    <!-- Kiosk Action Buttons -->
-    <string name="kiosk_action_flashlight">פנס</string>
-    <string name="kiosk_action_bluetooth">בלוטות\'</string>
-    <string name="kiosk_action_wifi">Wi-Fi</string>
-    <string name="kiosk_action_volume">עוצמת קול</string>
     <string name="kiosk_action_location">מיקום</string>
     <string name="kiosk_action_rotation">נעילת סיבוב</string>
-    <!-- Kiosk Screen -->
     <string name="kiosk_no_apps_selected">לא נבחרו אפליקציות להצגה</string>
     <string name="kiosk_toast_feature_unavailable">התכונה הזאת עתידית - ואינה זמינה בגרסה שברשותך!</string>
     <string name="kiosk_management_customize">התאם אישית תצוגה ופעולות</string>
@@ -302,4 +292,160 @@
     <string name="kiosk_content_desc_secure_update">עדכון מאובטח</string>
     <string name="kiosk_content_desc_main_settings">הגדרות ראשיות</string>
     <string name="kiosk_content_desc_about_app">אודות האפליקציה</string>
+
+    <!-- Netfree Only Mode -->
+    <string name="feature_netfree_only_title">מצב נטפרי בלבד</string>
+    <string name="feature_netfree_only_description">חוסם את כל תעבורת הרשת אם החיבור אינו מסונן על ידי נטפרי.</string>
+    <string name="toast_netfree_check_started">רשת חדשה זוהתה, בודק סינון נטפרי...</string>
+    <string name="toast_netfree_check_success">הרשת מאושרת על ידי נטפרי. הגלישה מאופשרת.</string>
+    <string name="toast_netfree_check_fail_blocking">הרשת אינה מסוננת. האינטרנט נחסם.</string>
+
+    <!-- ### הוספה ועדכון של טקסטים ### -->
+    <string name="netfree_notification_channel_name">ניטור סינון נטפרי</string>
+    <string name="netfree_notification_channel_description">התראה המציינת שסינון נטפרי מנוטר ברקע.</string>
+    <string name="netfree_notification_content">מצב סינון נטפרי מנוטר ברקע.</string>
+    <string name="vpn_notification_channel_name">שירות חומת אש</string>
+    <string name="vpn_notification_channel_description">התראה המציינת ששירות חומת האש (VPN) פעיל.</string>
+    <string name="vpn_notification_content">שירות חומת האש פעיל.</string>
+    <string name="netfree_no_active_network">אין חיבור רשת פעיל.</string>
+    <string name="netfree_service_restarted">שירות ניטור נטפרי אותחל.</string>
+    <string name="netfree_recheck_triggered">מבצע בדיקה חוזרת...</string>
+
+    <string name="netfree_status_title">סטטוס סינון נטפרי</string>
+    <string name="netfree_status_verified">הרשת מסוננת</string>
+    <string name="netfree_status_verified_wifi">הרשת מסוננת (Wi-Fi)</string>
+    <string name="netfree_status_verified_cellular">הרשת מסוננת (נתונים סלולריים)</string>
+    <string name="netfree_status_not_verified_and_blocked">הרשת אינה מסוננת (האינטרנט חסום)</string>
+    <string name="netfree_status_checking">בודק סטטוס...</string>
+    <string name="netfree_status_service_inactive">השירות אינו פעיל</string>
+    <string name="netfree_button_recheck">בדיקה חוזרת</string>
+    <string name="netfree_button_restart_service">אתחול השירות</string>
+
+    <!-- Project-wide identified strings -->
+    <string name="toast_installing_update">מתקין עדכון, האפליקציה תופעל מחדש...</string>
+    <string name="update_dialog_installing">מתקין עדכון...</string>
+    <string name="update_dialog_please_wait">אנא המתן...</string>
+    <string name="update_dialog_processing">מעבד...</string>
+    <string name="update_dialog_error">שגיאה</string>
+    <string name="error_reading_apk">לא ניתן היה לקרוא את קובץ ה-APK.</string>
+    <string name="error_reading_apk_generic">שגיאה בקריאת קובץ ה-APK.</string>
+    <string name="error_installing_update">שגיאה בהתחלת ההתקנה: %s</string>
+    <string name="frp_settings_title">הגדר FRP מותאם אישית</string>
+    <string name="frp_settings_description">הוסף חשבונות Google (לפי User ID) שיורשו לבצע איפוס למכשיר. אם רשימה זו ריקה, ייעשה שימוש בחשבון ברירת המחדל.</string>
+    <string name="frp_settings_label_user_id">הזן User ID</string>
+    <string name="frp_settings_empty_list">לא הוגדרו חשבונות מותאמים אישית.</string>
+    <string name="frp_settings_error_already_exists">ID כבר קיים ברשימה</string>
+    <string name="frp_settings_error_digits_only">יש להזין ID המכיל מספרים בלבד</string>
+    <string name="frp_settings_saved_success">רשימת ה-FRP המותאמת נשמרה</string>
+    <string name="dashboard_error_app_not_installed">האפליקציה לא מותקנת!</string>
+    <string name="dashboard_error_mod_apk_incompatibility">יכול להיות שמדובר באפליקציה שעברה שינוים (MOD), ואינה תואמת לעדכון.</string>
+    <string name="dashboard_button_understood">הבנתי</string>
+    <string name="app_info_version">גרסה:</string>
+    <string name="app_info_status">סטטוס:</string>
+    <string name="app_info_author">יוצר:</string>
+    <string name="app_info_author_name">יוסי פוליטנסקי</string>
+    <string name="app_info_forum_user">במתמחים טופ:</string>
+    <!--suppress AndroidDomInspection -->
+    <string name="app_info_forum_user_name">@iosi-poli</string>
+    <string name="app_info_contact_us">ליצירת קשר:</string>
+    <string name="app_info_button_contact_email">צור קשר במייל</string>
+    <string name="app_info_button_close">סגור</string>
+    <string name="settings_error_vpn_permission_required">נדרש אישור להפעלת ה-VPN</string>
+    <string name="settings_error_loading_device_admins">שגיאה בטעינת רשימת אפליקציות ניהול המכשיר</string>
+    <string name="settings_error_android_version_required">תכונה זו זמינה רק מגרסת אנדרואיד 9 ומעלה</string>
+    <string name="settings_transfer_ownership_success">הבעלות הועברה בהצלחה ל-%s</string>
+    <string name="settings_transfer_ownership_error">שגיאה בהעברת הבעלות: %s</string>
+    <string name="settings_transfer_ownership_error_unsupported">היעד שנבחר לא תומך בהעברת בעלות: %s</string>
+    <string name="settings_transfer_ownership_error_invalid_state">מצב לא תקין להעברת בעלות: %s</string>
+    <string name="settings_transfer_ownership_error_unexpected">שגיאה לא צפויה בהעברת הבעלות: %s</string>
+    <string name="removal_error_security">שגיאת אבטחה בהסרת הרשאות: %s</string>
+    <string name="removal_error_invalid_parameter">פרמטר לא תקין בהסרה: %s</string>
+    <string name="removal_error_invalid_state">מצב לא תקין בהסרה: %s</string>
+    <string name="removal_error_runtime">שגיאת זמן ריצה בהסרה: %s</string>
+    <string name="removal_error_unexpected">שגיאה לא צפויה בהסרה: %s</string>
+    <string name="removal_error_security_title">שגיאת אבטחה</string>
+    <string name="removal_error_invalid_parameter_title">פרמטר לא תקין</string>
+    <string name="removal_error_invalid_state_title">מצב לא תקין</string>
+    <string name="removal_error_runtime_title">שגיאת זמן ריצה</string>
+    <string name="removal_error_unexpected_title">שגיאה לא צפויה</string>
+    <string name="settings_desc_more_info">מידע נוסף</string>
+    <string name="removal_options_dialog_title">אפשרויות הסרה לאייבלוק</string>
+    <string name="removal_options_dialog_message">בחר את האפשרות הרצויה:</string>
+    <string name="removal_options_button_regular">הסרה רגילה של אייבלוק</string>
+    <string name="removal_options_button_transfer">העברת בעלות לפני הסרה</string>
+    <string name="device_admin_selection_dialog_title">בחר אפליקציית ניהול מכשיר</string>
+    <string name="device_admin_selection_dialog_empty">לא נמצאו אפליקציות ניהול מכשיר אחרות במכשיר זה.</string>
+    <string name="device_admin_transfer_dialog_title">העברת ניהול מכשיר?</string>
+    <string name="device_admin_transfer_dialog_message">האם אתה בטוח שברצונך להעביר את הרשאות הניהול ל-%1$s?\n\n(שם חבילה=%2$s)\n\nאזהרה! יש אפשרות שלא תוכלו להסיר את הרשאות הניהול מהאפליקציה.\n</string>
+    <string name="device_admin_transfer_dialog_button_confirm">כן, העבר</string>
+    <string name="device_admin_transfer_dialog_button_cancel">ביטול</string>
+    <string name="main_activity_permission_title">נדרשת הרשאה נוספת</string>
+    <string name="main_activity_permission_message">כדי שכפתורי ה-Wi-Fi, הבלוטות\' וסיבוב המסך יעבדו ממצב קיוסק, יש להעניק לאפליקציה הרשאה לשנות הגדרות מערכת.\\n\\nאם לא תאשר, רק הפונקציונליות של כפתורים אלו תהיה מוגבלת.</string>
+    <string name="main_activity_permission_button_grant">הענק הרשאה</string>
+    <string name="main_activity_permission_button_later">לא עכשיו</string>
+    <string name="netguard_unsafe_dialog_title">NetGuard אינו בטוח כרגע</string>
+    <string name="netguard_unsafe_dialog_message">נטגארד אינו בטוח כרגע, והאבטחה עליו תוסר.\\n\\nהאם ברצונך להסיר גם את נטגארד עצמו על הדרך?</string>
+    <string name="netguard_unsafe_button_uninstall">הסר את NetGuard</string>
+    <string name="netguard_unsafe_button_keep">השאר את NetGuard</string>
+    <string name="kiosk_button_save_return">שמור וחזור לקיוסק</string>
+    <string name="kiosk_admin_access_title">גישת מנהל</string>
+    <string name="kiosk_admin_access_message">הזן את סיסמת המנהל כדי לגשת להגדרות.</string>
+    <string name="kiosk_admin_access_password_label">סיסמה</string>
+    <string name="kiosk_power_options_title">אפשרויות הפעלה</string>
+    <string name="kiosk_power_options_message">האם ברצונך לבצע הפעלה מחדש של המכשיר?</string>
+    <string name="kiosk_power_options_button_restart">הפעלה מחדש (Restart)</string>
+    <string name="kiosk_destination_dialog_title">בחר יעד</string>
+    <string name="kiosk_destination_dialog_message">לאן תרצה לעבור?</string>
+    <string name="kiosk_destination_button_kiosk_settings">הגדרות קיוסק</string>
+    <string name="kiosk_destination_button_dashboard">ניהול כללי (Dashboard)</string>
+    <string name="kiosk_button_add_apps_now">הוסף אפליקציות עכשיו</string>
+    <string name="app_selection_search_hint">חיפוש...</string>
+    <string name="app_selection_filter_user">אפליקציות משתמש</string>
+    <string name="app_selection_filter_launcher">אפליקציות מסך הבית</string>
+    <string name="app_selection_filter_all_except_core">כל האפליקציות (למעט ליבה)</string>
+    <string name="app_selection_filter_all">הצג הכל</string>
+    <string name="app_selection_add_manual_package">הוסף חבילה ידנית</string>
+    <string name="kiosk_management_desc_selected">נבחר</string>
+    <string name="frp_settings_desc_delete_id">מחק ID</string>
+    <string name="app_selection_title">בחר אפליקציות לחסימה</string>
+    <string name="app_selection_desc_add_manual">הוסף חבילה ידנית</string>
+    <string name="toast_changes_saved_active">השינויים נשמרים והופעלו</string>
+    <string name="app_selection_label_search">חיפוש...</string>
+    <string name="app_selection_desc_filter">סנן אפליקציות</string>
+    <string name="dialog_add_manual_package_title">הוסף חבילה ידנית</string>
+    <string name="dialog_add_manual_package_button_confirm">הוסף וחסימה</string>
+    <string name="app_selection_warning_critical_title">אזהרה: אפליקציות חשובות</string>
+    <string name="app_selection_warning_critical_message">המהלך צפוי לגרום למכשירך להרס בלתי הפיך, מכיוון שזאת אפליקציה חשובה מדי!</string>
+    <string name="app_selection_warning_critical_coming_soon">בקרוב יהיה אפשר לחסום גם את זה בבטחה!</string>
+    <string name="app_selection_warning_critical_list_label">אפליקציות שנבחרו:</string>
+    
+    <!-- Redundant aliases to fix code errors without changing code too much -->
+    <string name="permission_dialog_title">נדרשת הרשאה נוספת</string>
+    <string name="permission_dialog_message">כדי שכפתורי ה-Wi-Fi, הבלוטות\' וסיבוב המסך יעבדו ממצב קיוסק, יש להעניק לאפליקציה הרשאה לשנות הגדרות מערכת.\\n\\nאם לא תאשר, רק הפונקציונליות של כפתורים אלו תהיה מוגבלת.</string>
+    <string name="permission_dialog_button_confirm">הענק הרשאה</string>
+    <string name="permission_dialog_button_cancel">לא עכשיו</string>
+    <string name="netguard_upgrade_dialog_title">NetGuard אינו בטוח כרגע</string>
+    <string name="netguard_upgrade_dialog_message">נטגארד אינו בטוח כרגע, והאבטחה עליו תוסר.\\n\\nהאם ברצונך להסיר גם את נטגארד עצמו על הדרך?</string>
+    <string name="netguard_upgrade_dialog_button_uninstall">הסר את NetGuard</string>
+    <string name="netguard_upgrade_dialog_button_keep">השאר את NetGuard</string>
+    <string name="notification_initializing">Initializing services...</string>
+    
+    <string name="kiosk_dialog_admin_title">גישת מנהל</string>
+    <string name="kiosk_dialog_admin_message">הזן את סיסמת המנהל כדי לגשת להגדרות.</string>
+    <string name="kiosk_dialog_admin_label_password">סיסמה</string>
+    <string name="kiosk_dialog_power_title">אפשרויות הפעלה</string>
+    <string name="kiosk_dialog_power_message">האם ברצונך לבצע הפעלה מחדש של המכשיר?</string>
+    <string name="kiosk_dialog_power_warning">שים לב: כיבוי מלא אינו זמין מסיבות אבטחה.</string>
+    <string name="kiosk_dialog_power_button_reboot">הפעלה מחדש (Restart)</string>
+    <string name="kiosk_dialog_choice_title">בחר יעד</string>
+    <string name="kiosk_dialog_choice_message">לאן תרצה לעבור?</string>
+    <string name="kiosk_dialog_choice_button_kiosk">הגדרות קיוסק</string>
+    <string name="kiosk_dialog_choice_button_dashboard">ניהול כללי (Dashboard)</string>
+    <string name="kiosk_toast_app_not_found">לא ניתן לפתוח את האפליקציה</string>
+    <string name="kiosk_empty_state_title">אין אפליקציות מוצגות</string>
+    <string name="kiosk_empty_state_button">הוסף אפליקציות עכשיו</string>
+    <string name="kiosk_desc_power">כיבוי/הפעלה</string>
+    <string name="kiosk_desc_settings">הגדרות</string>
+    <string name="main_service_initializing">אייבלוק הופעלה עם הדלקת המכשיר.</string>
+
 </resources>

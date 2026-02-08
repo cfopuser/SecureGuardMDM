@@ -8,12 +8,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.secureguard.mdm.R
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -21,12 +23,25 @@ fun ProvisioningScreen(
     viewModel: ProvisioningViewModel = hiltViewModel(),
     onCheckAgain: () -> Unit
 ) {
+    val context = LocalContext.current
+    val dpm = remember { context.getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
                 is ProvisioningEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
+            }
+        }
+    }
+
+    // Automatically check for permissions every 2 seconds
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(2000) // Check every 2 seconds
+            if (dpm.isDeviceOwnerApp(context.packageName)) {
+                onCheckAgain() // This will trigger navigation to the next screen
+                break
             }
         }
     }

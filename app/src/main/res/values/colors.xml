@@ -10,7 +10,7 @@
     <color name="white">#FFFFFFFF</color>
 
     <!-- Material 3 Kiosk Theme Colors -->
-    <color name="md_theme_primary">#6750A4</color>
+    <color name="md_theme_primary">#B71C1C</color>
     <color name="md_theme_onPrimary">#FFFFFF</color>
     <color name="md_theme_primaryContainer">#EADDFF</color>
     <color name="md_theme_onPrimaryContainer">#21005D</color>
@@ -37,5 +37,5 @@
     <color name="md_theme_inverseSurface">#313033</color>
     <color name="md_theme_inverseOnSurface">#F4EFF4</color>
     <color name="md_theme_inversePrimary">#D0BCFF</color>
-    <color name="md_theme_surfaceTint">#6750A4</color>
+    <color name="md_theme_surfaceTint">#B71C1C</color>
 </resources>

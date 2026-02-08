@@ -24,6 +24,12 @@ class SecureGuardDeviceAdminReceiver : DeviceAdminReceiver() {
         Log.d(TAG, "Device admin disabled")
     }
 
+    override fun onTransferOwnershipComplete(context: Context, bundle: android.os.PersistableBundle?) {
+        super.onTransferOwnershipComplete(context, bundle)
+        Log.d(TAG, "Transfer ownership completed successfully")
+        // Handle any post-transfer logic here if needed
+    }
+
     companion object {
         /**
          * מספק דרך נוחה ומרכזית לקבל את ה-ComponentName של ה-Receiver.

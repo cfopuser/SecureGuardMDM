@@ -22,11 +22,12 @@ object SettingsRegistry {
         ShowBootToastSetting,
 
         // קטגוריית פעולות מתקדמות
+        UpdateChannelAction,
         NavigateToKioskModeSetting,
         NavigateToFrpSetting,
         NavigateToChangePasswordSetting,
         ToggleUpdatesSetting,
         LockSettingsAction,
-        RemoveProtectionAction
+        RemovalOptionsAction
     )
 }

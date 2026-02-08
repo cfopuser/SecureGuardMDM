@@ -22,5 +22,7 @@
         <disable-keyguard-features />
 
         <!-- The disable-screen-capture policy is in the xml-v28 version of this file -->
+        <!-- support-transfer-ownership is only available in xml-v28 -->
     </uses-policies>
+    
 </device-admin>

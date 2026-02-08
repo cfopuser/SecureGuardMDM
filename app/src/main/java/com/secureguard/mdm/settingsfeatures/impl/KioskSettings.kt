@@ -11,4 +11,5 @@ object NavigateToKioskModeSetting : NavigationalSetting {
     override val iconRes: Int = R.drawable.ic_apps_blocked // Placeholder icon
     override val category: SettingCategory = SettingCategory.ADVANCED_ACTIONS // Or a new category
     override val route: String = Routes.KIOSK_MANAGEMENT
+    override val requiredSdkVersion: Int = android.os.Build.VERSION_CODES.P
 }
