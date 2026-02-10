@@ -114,6 +114,14 @@
             android:name=".receivers.UninstallReceiver"
             android:exported="false" />
 
+        <receiver
+            android:name=".receivers.PresetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.secureguard.mdm.ACTION_APPLY_PRESET" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".services.BlockerVpnService"
             android:exported="false"
