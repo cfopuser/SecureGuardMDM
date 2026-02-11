@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Bloq | MDM Preset Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --md-sys-color-primary: #B71C1C;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #FFDAD9;
+            --md-sys-color-on-primary-container: #410002;
+            --md-sys-color-surface: #FFF8F7;
+            --md-sys-color-on-surface: #201A1A;
+            --md-sys-color-surface-variant: #F5DDDA;
+            --md-sys-color-on-surface-variant: #534341;
+            --md-sys-color-outline: #857371;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            padding: 2rem 1rem;
+        }
+
+        .m3-card {
+            background-color: var(--md-sys-color-surface);
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 28px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .m3-input {
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 8px;
+            padding: 12px 16px;
+            background: transparent;
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        .m3-input:focus {
+            outline: 2px solid var(--md-sys-color-primary);
+            border-color: transparent;
+        }
+
+        .m3-button {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            padding: 12px 24px;
+            border-radius: 100px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: elevation 0.2s;
+        }
+
+        .m3-button-outline {
+            border: 1px solid var(--md-sys-color-outline);
+            color: var(--md-sys-color-primary);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .feature-chip {
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 12px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .feature-chip.active {
+            background-color: var(--md-sys-color-primary-container);
+            border-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary-container);
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--md-sys-color-surface-variant);
+        }
+
+        .category-title {
+            color: var(--md-sys-color-primary);
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        #command-output {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1.5rem;
+            border-radius: 16px;
+            word-break: break-all;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            border: 1px solid #333;
+        }
+
+        .json-key { color: #9cdcfe; }
+        .json-value { color: #ce9178; }
+        .json-bool { color: #569cd6; }
+    </style>
+</head>
+<body>
+
+    <div class="max-w-5xl mx-auto">
+        <header class="flex items-center gap-4 mb-8">
+            <div class="bg-[var(--md-sys-color-primary)] p-3 rounded-2xl">
+                <span class="material-icons-outlined text-3xl text-white">security</span>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold">A Bloq</h1>
+                <p class="text-sm opacity-70 font-medium">ADB Preset Provisioning Tool</p>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Settings Area -->
+            <div class="lg:col-span-2">
+                
+                <div class="m3-card">
+                    <h2 class="text-xl font-bold mb-6 flex items-center gap-3">
+                        <span class="material-icons-outlined">settings</span> Initial Setup
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-sm font-medium text-[var(--md-sys-color-on-surface-variant)]">Admin Password</label>
+                            <input type="text" id="adminPassword" class="m3-input" placeholder="Set password (e.g. 1234)" oninput="updateUI()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="m3-card">
+                    <h2 class="text-xl font-bold mb-2 flex items-center gap-3">
+                        <span class="material-icons-outlined">gpp_maybe</span> Protection Features
+                    </h2>
+                    <p class="text-sm opacity-70 mb-6">Select features to enable by default during first boot.</p>
+                    
+                    <div id="features-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="m3-card">
+                    <h2 class="text-xl font-bold mb-6 flex items-center gap-3">
+                        <span class="material-icons-outlined">launch</span> Kiosk Settings
+                    </h2>
+                    <div class="flex items-center justify-between mb-6 p-4 bg-white rounded-2xl border border-[var(--md-sys-color-outline)]">
+                        <div>
+                            <p class="font-bold">Enable Kiosk Mode</p>
+                            <p class="text-xs opacity-60">Force device into the custom launcher</p>
+                        </div>
+                        <input type="checkbox" id="kioskEnabled" class="w-6 h-6 accent-[var(--md-sys-color-primary)]" onchange="updateUI()">
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-[var(--md-sys-color-on-surface-variant)]">Kiosk App Packages (Comma separated)</label>
+                        <textarea id="kioskApps" class="m3-input h-24 font-mono text-sm" placeholder="com.android.settings&#10;com.google.android.calculator" oninput="updateUI()"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview / Output Area -->
+            <div class="lg:col-span-1">
+                <div class="sticky top-8 space-y-4">
+                    <div class="m3-card bg-[var(--md-sys-color-surface-variant)] border-none">
+                        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                            <span class="material-icons-outlined text-sm">terminal</span> ADB Command
+                        </h2>
+                        
+                        <div id="command-output" class="mb-6">
+                            <!-- Command goes here -->
+                        </div>
+
+                        <button class="m3-button w-full justify-center shadow-lg" onclick="copyCommand()">
+                            <span class="material-icons-outlined">content_copy</span> Copy Command
+                        </button>
+                        
+                        <div id="copy-toast" class="hidden mt-4 p-3 bg-green-800 text-white text-center text-sm rounded-xl font-medium">
+                            Copied to clipboard!
+                        </div>
+                    </div>
+
+                    <div class="p-6 opacity-60 text-xs">
+                        <p class="font-bold mb-2">Usage Note:</p>
+                        <p>This command must be sent via ADB while the app is in its "Provisioning" state (before local setup is complete) and must already be set as Device Owner.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const CATEGORIES = [
+            {
+                name: "Device Management",
+                features: [
+                    { id: "block_dev_options", name: "Block Dev Options" },
+                    { id: "block_factory_reset", name: "Block Factory Reset" },
+                    { id: "frp_protection", name: "FRP Protection" },
+                    { id: "block_safe_boot", name: "Block Safe Mode" },
+                    { id: "block_add_user", name: "Block Add User" },
+                    { id: "block_remove_user", name: "Block Remove User" },
+                    { id: "block_modify_accounts", name: "Block Account Changes" },
+                    { id: "block_password_change", name: "Block Password Changes" }
+                ]
+            },
+            {
+                name: "Hardware",
+                features: [
+                    { id: "block_camera", name: "Block Camera" },
+                    { id: "block_microphone", name: "Block Microphone" },
+                    { id: "block_screenshot", name: "Block Screenshots" },
+                    { id: "block_usb_transfer", name: "Block USB File Transfer" },
+                    { id: "block_mount_physical_media", name: "Block SD/OTG Media" },
+                    { id: "block_location", name: "Block Location Sharing" }
+                ]
+            },
+            {
+                name: "Network",
+                features: [
+                    { id: "block_wifi", name: "Block Wi-Fi" },
+                    { id: "block_bluetooth", name: "Block Bluetooth" },
+                    { id: "block_bluetooth_sharing", name: "Block BT Sharing" },
+                    { id: "block_mobile_data", name: "Block Mobile Data" },
+                    { id: "block_tethering", name: "Block Hotspot" },
+                    { id: "block_private_dns", name: "Block Private DNS" },
+                    { id: "block_config_mobile_networks", name: "Block APN Settings" }
+                ]
+            },
+            {
+                name: "Apps & Content",
+                features: [
+                    { id: "block_play_store", name: "Block Play Store" },
+                    { id: "block_install_apps", name: "Block All Installs" },
+                    { id: "block_uninstall_apps", name: "Block Uninstalls" },
+                    { id: "block_unknown_sources", name: "Block APK Installs" },
+                    { id: "block_apps_control", name: "Block App Info Actions" },
+                    { id: "block_autofill", name: "Block Autofill" },
+                    { id: "block_content_capture", name: "Block Content Capture" }
+                ]
+            },
+            {
+                name: "VPN & Filters",
+                features: [
+                    { id: "netfree_only_mode", name: "Netfree Only Mode" },
+                    { id: "block_internet_vpn", name: "Block Internet (Internal VPN)" },
+                    { id: "block_vpn_settings", name: "Block VPN Settings" },
+                    { id: "install_protect_netguard", name: "Install/Protect NetGuard" },
+                    { id: "force_netguard_vpn", name: "Force NetGuard Always-On" }
+                ]
+            },
+            {
+                name: "Calls & Messages",
+                features: [
+                    { id: "block_outgoing_calls", name: "Block Outgoing Calls" },
+                    { id: "block_incoming_calls", name: "Block All Calls (NoPhone)" },
+                    { id: "block_sms", name: "Block SMS" }
+                ]
+            },
+            {
+                name: "User Interface",
+                features: [
+                    { id: "disable_status_bar", name: "Disable Status Bar" },
+                    { id: "disable_keyguard", name: "Disable Lock Screen" },
+                    { id: "block_set_wallpaper", name: "Block Wallpaper Change" },
+                    { id: "block_set_user_icon", name: "Block User Icon Change" },
+                    { id: "block_adjust_volume", name: "Block Volume Changes" },
+                    { id: "block_ambient_display", name: "Block Ambient Display" },
+                    { id: "block_system_error_dialogs", name: "Block System Popups" }
+                ]
+            },
+            {
+                name: "Advanced System",
+                features: [
+                    { id: "block_config_location", name: "Block Location Config" },
+                    { id: "block_config_credentials", name: "Block Certificate Install" },
+                    { id: "block_printing", name: "Block Printing" },
+                    { id: "block_config_cell_broadcasts", name: "Block Cell Broadcasts" },
+                    { id: "block_remove_managed_profile", name: "Block Work Profile Removal" }
+                ]
+            }
+        ];
+
+        const activeFeatures = new Set();
+
+        function createFeatureList() {
+            const container = document.getElementById('features-list');
+            CATEGORIES.forEach(cat => {
+                const catHeader = document.createElement('div');
+                catHeader.className = 'category-header';
+                catHeader.innerHTML = `
+                    <span class="category-title">${cat.name}</span>
+                    <button class="m3-button-outline" onclick="toggleCategory('${cat.name}', true)">Select All</button>
+                `;
+                container.appendChild(catHeader);
+
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-2';
+                cat.features.forEach(f => {
+                    const chip = document.createElement('div');
+                    chip.className = 'feature-chip';
+                    chip.id = `chip-${f.id}`;
+                    chip.innerHTML = `<span class="material-icons-outlined text-sm">check_box_outline_blank</span> ${f.name}`;
+                    chip.onclick = () => toggleFeature(f.id);
+                    grid.appendChild(chip);
+                });
+                container.appendChild(grid);
+            });
+        }
+
+        function toggleFeature(id) {
+            const el = document.getElementById(`chip-${id}`);
+            if (activeFeatures.has(id)) {
+                activeFeatures.delete(id);
+                el.classList.remove('active');
+                el.querySelector('span').innerText = 'check_box_outline_blank';
+            } else {
+                activeFeatures.add(id);
+                el.classList.add('active');
+                el.querySelector('span').innerText = 'check_box';
+            }
+            updateUI();
+        }
+
+        function toggleCategory(catName, state) {
+            const category = CATEGORIES.find(c => c.name === catName);
+            category.features.forEach(f => {
+                if (state && !activeFeatures.has(f.id)) toggleFeature(f.id);
+                if (!state && activeFeatures.has(f.id)) toggleFeature(f.id);
+            });
+        }
+
+        function updateUI() {
+            const password = document.getElementById('adminPassword').value;
+            const kioskEnabled = document.getElementById('kioskEnabled').checked;
+            const kioskAppsRaw = document.getElementById('kioskApps').value;
+            
+            const kioskApps = kioskAppsRaw.split(/[\n,]+/)
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+
+            const featureMap = {};
+            activeFeatures.forEach(fid => featureMap[fid] = true);
+
+            const preset = {
+                adminPassword: password || undefined,
+                features: featureMap,
+                kioskEnabled: kioskEnabled,
+                kioskApps: kioskApps.length > 0 ? kioskApps : undefined
+            };
+
+            const jsonString = JSON.stringify(preset);
+            
+            // --- CHANGE IS HERE ---
+            // Escape all double quotes inside the JSON string to match the desired output format.
+            const escapedJsonString = jsonString.replace(/"/g, '\\"');
+
+            const fullCommand = `adb shell "am broadcast -a com.secureguard.mdm.ACTION_APPLY_PRESET --es extra_preset_json '${escapedJsonString}' com.secureguard.mdm/com.secureguard.mdm.receivers.PresetReceiver"`;
+            // --- END OF CHANGE ---
+
+            document.getElementById('command-output').innerText = fullCommand;
+        }
+
+        async function copyCommand() {
+            const cmd = document.getElementById('command-output').innerText;
+            try {
+                await navigator.clipboard.writeText(cmd);
+                const toast = document.getElementById('copy-toast');
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 2000);
+            } catch (err) {
+                alert("Failed to copy. Please select text manually.");
+            }
+        }
+
+        window.onload = () => {
+            createFeatureList();
+            updateUI();
+        };
+    </script>
+</body>
+</html>

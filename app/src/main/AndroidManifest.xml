@@ -52,6 +52,7 @@
         <activity
             android:name=".kiosk.ui.KioskActivity"
             android:exported="true"
+            android:enabled="false"
             android:theme="@style/Theme.SecureGuard.Kiosk"
             android:windowSoftInputMode="adjustResize"
             android:launchMode="singleTask"

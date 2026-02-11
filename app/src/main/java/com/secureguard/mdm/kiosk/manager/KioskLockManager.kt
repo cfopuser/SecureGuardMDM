@@ -108,8 +108,15 @@ class KioskLockManager @Inject constructor(
     /**
      * מגדיר את האפליקציה כלאנצ'ר ברירת המחדל הקבוע (דורש Device Owner).
      */
+    /**
+     * מגדיר את האפליקציה כלאנצ'ר ברירת המחדל הקבוע (דורש Device Owner).
+     * כעת גם מפעיל את הרכיב (Component) של ה-KioskActivity כי הוא כבוי ב-Manifest.
+     */
     fun setKioskAsDefaultLauncher(includeViewAbsorber: Boolean) {
         if (!dpm.isDeviceOwnerApp(context.packageName)) return
+
+        // 1. אפשור הרכיב KioskActivity
+        setKioskComponentEnabled(true)
 
         // פילטר למסך הבית
         val homeFilter = IntentFilter(Intent.ACTION_MAIN).apply {
@@ -171,8 +178,10 @@ class KioskLockManager @Inject constructor(
         }
 
         try {
-            // קודם מנקים את שלנו כדי למנוע קונפליקטים (אופציונלי אבל מומלץ)
+            // קודם מנקים את שלנו כדי למנוע קונפליקטים
+            // זה גם יכבה את ה-KioskActivity שלנו
             clearKioskAsDefaultLauncher()
+            
             // מגדירים את הלאנצ'ר השני כקבוע
             dpm.addPersistentPreferredActivity(adminComponent, homeFilter, component)
             Log.d("KioskLockManager", "Set $packageName as persistent home launcher")
@@ -183,14 +192,41 @@ class KioskLockManager @Inject constructor(
 
     /**
      * מסיר את ההגדרה של האפליקציה כלאנצ'ר ברירת מחדל.
+     * וגם מכבה את הרכיב KioskActivity כדי שלא יופיע ב-Launcher Chooser.
      */
     fun clearKioskAsDefaultLauncher() {
         if (!dpm.isDeviceOwnerApp(context.packageName)) return
         try {
             Log.d("KioskLockManager", "Clearing persistent preferred activities for kiosk package")
             dpm.clearPackagePersistentPreferredActivities(adminComponent, context.packageName)
+            
+            // 2. כיבוי הרכיב KioskActivity
+            setKioskComponentEnabled(false)
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    /**
+     * הפעלה או כיבוי של KioskActivity ברמת ה-PackageManager.
+     */
+    private fun setKioskComponentEnabled(enabled: Boolean) {
+        val componentName = ComponentName(context, KioskActivity::class.java)
+        val newState = if (enabled) {
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        } else {
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+        }
+        
+        try {
+            context.packageManager.setComponentEnabledSetting(
+                componentName,
+                newState,
+                PackageManager.DONT_KILL_APP
+            )
+            Log.d("KioskLockManager", "KioskActivity component enabled: $enabled")
+        } catch (e: Exception) {
+            Log.e("KioskLockManager", "Failed to set component state for KioskActivity", e)
         }
     }
 

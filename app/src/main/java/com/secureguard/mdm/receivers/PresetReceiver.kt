@@ -10,6 +10,8 @@ import com.secureguard.mdm.SecureGuardDeviceAdminReceiver
 import com.secureguard.mdm.data.model.PresetConfig
 import com.secureguard.mdm.data.repository.SettingsRepository
 import com.secureguard.mdm.features.registry.FeatureRegistry
+import com.secureguard.mdm.kiosk.manager.KioskLockManager
+import com.secureguard.mdm.kiosk.ui.KioskActivity
 import com.secureguard.mdm.security.PasswordManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -27,6 +29,9 @@ class PresetReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var passwordManager: PasswordManager
+
+    @Inject
+    lateinit var kioskLockManager: KioskLockManager
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -113,7 +118,26 @@ class PresetReceiver : BroadcastReceiver() {
                 settingsRepository.setKioskAppPackages(apps.toSet())
                 Log.d(TAG, "Kiosk apps set: $apps")
             }
-            Log.d(TAG, "Kiosk mode enabled.")
+            
+            // --- Kiosk Mode Activation (Fix) ---
+            // 1. Set LockTask packages (allows us to pin screen)
+            kioskLockManager.setLockTaskPackages()
+            
+            // 2. Hide system bars (Home, Back, Recents)
+            kioskLockManager.enableKioskModeFeatures()
+            
+            // 3. Set as Default Launcher (home app)
+            // We use 'true' for includeViewAbsorber to match strict kiosk behavior if desired.
+            // You might want to make this configurable in PresetConfig later.
+            kioskLockManager.setKioskAsDefaultLauncher(includeViewAbsorber = true)
+
+            Log.d(TAG, "Kiosk mode enabled and restrictions applied.")
+            
+            // 4. Launch Kiosk Activity immediately
+            val launchIntent = Intent(context, KioskActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            context.startActivity(launchIntent)
         }
 
         // Mark Setup Complete
