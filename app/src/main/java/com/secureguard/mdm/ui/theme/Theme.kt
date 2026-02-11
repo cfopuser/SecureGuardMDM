@@ -1,8 +1,10 @@
 package com.secureguard.mdm.ui.theme
 
 import android.app.Activity
+import android.util.Log
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -13,7 +15,6 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.view.WindowCompat
-import android.util.Log
 import java.util.Locale
 
 /**
@@ -34,6 +35,23 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
+ * ערכת הצבעים הכהה של האפליקציה (Dark Mode).
+ */
+private val DarkColorScheme = darkColorScheme(
+    primary = PrimaryRedDark,
+    secondary = SecondaryRedDark,
+    tertiary = AccentColor,
+    background = BackgroundDark,
+    surface = SurfaceDark,
+    onPrimary = Color.Black,
+    onSecondary = Color.Black,
+    onTertiary = Color.Black,
+    onBackground = TextPrimaryDark,
+    onSurface = TextPrimaryDark,
+    error = ErrorColor
+)
+
+/**
  * ה-Theme הראשי של האפליקציה.
  * כל ממשק המשתמש של האפליקציה ייעטף בקומפוזיציה זו.
  */
@@ -43,13 +61,13 @@ fun SecureGuardTheme(
     overrideStatusBarColor: Color? = null,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = LightColorScheme
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = (overrideStatusBarColor ?: colorScheme.primary).toArgb()
+            window.statusBarColor = (overrideStatusBarColor ?: colorScheme.background).toArgb() // Status bar matches background by default
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }

@@ -232,6 +232,10 @@
     <string name="settings_item_lock_settings">נעל הגדרות לצמיתות</string>
     <string name="settings_lock_dialog_title">אזהרה: פעולה בלתי הפיכה</string>
     <string name="settings_lock_dialog_message">נעילת ההגדרות תסיר לצמיתות את הגישה למסך זה ותשבית את כל העדכונים העתידיים. לא ניתן לבטל פעולה זו. האם אתה בטוח שברצונך להמשיך?</string>
+    <string name="settings_item_export_settings">ייצא הגדרות כקובץ JSON</string>
+    <string name="settings_export_success">ההגדרות יוצאו בהצלחה</string>
+    <string name="settings_export_error">שגיאה בייצוא ההגדרות: %s</string>
+    <string name="settings_export_error_unexpected">שגיאה לא צפויה בייצוא ההגדרות</string>
 
     <string name="settings_lock_dialog_allow_manual_update">השאר עדכון ידני מאובטח פעיל</string>
     <string name="check_for_updates">בדוק אם יש עדכון</string>

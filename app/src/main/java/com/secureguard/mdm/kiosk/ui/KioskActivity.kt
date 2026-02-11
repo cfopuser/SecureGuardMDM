@@ -108,7 +108,7 @@ class KioskActivity : ComponentActivity() {
 
             // הצג את מסך הקיוסק
             setContent {
-                SecureGuardTheme(overrideStatusBarColor = Color(0xFFE8E8EC)) {
+                SecureGuardTheme {
                     androidx.compose.runtime.CompositionLocalProvider(
                         androidx.compose.ui.platform.LocalLayoutDirection provides systemDirection
                     ) {

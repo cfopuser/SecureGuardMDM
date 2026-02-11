@@ -3,7 +3,7 @@
         Base application theme for Compose part of the app.
     -->
     <style name="Theme.SecureGuard" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">@color/purple_700</item>
+        <item name="android:statusBarColor">@color/md_theme_background</item>
     </style>
 
     <!--

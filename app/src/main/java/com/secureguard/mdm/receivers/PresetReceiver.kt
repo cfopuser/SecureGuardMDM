@@ -33,6 +33,9 @@ class PresetReceiver : BroadcastReceiver() {
     @Inject
     lateinit var kioskLockManager: KioskLockManager
 
+    @Inject
+    lateinit var preferencesManager: com.secureguard.mdm.data.local.PreferencesManager
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -111,6 +114,45 @@ class PresetReceiver : BroadcastReceiver() {
             }
         }
 
+        // Apply Expanded Settings
+        config.blockedApps?.let { packages ->
+            try {
+                settingsRepository.setBlockedAppPackages(packages)
+                packages.forEach { packageName ->
+                    dpm.setApplicationHidden(adminComponent, packageName, true)
+                }
+                Log.d(TAG, "Blocked apps applied: $packages")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to apply blocked apps", e)
+            }
+        }
+
+        config.suspendedApps?.let { packages ->
+            try {
+                settingsRepository.setSuspendedAppPackages(packages)
+                if (packages.isNotEmpty()) {
+                    dpm.setPackagesSuspended(adminComponent, packages.toTypedArray(), true)
+                }
+                Log.d(TAG, "Suspended apps applied: $packages")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to apply suspended apps", e)
+            }
+        }
+
+        config.customFrpIds?.let { ids ->
+            settingsRepository.setCustomFrpIds(ids)
+            Log.d(TAG, "FRP IDs applied: $ids")
+        }
+
+        config.updateChannel?.let { channel ->
+            preferencesManager.saveString(com.secureguard.mdm.data.local.PreferencesManager.KEY_UPDATE_CHANNEL, channel)
+            Log.d(TAG, "Update channel set to: $channel")
+        }
+        
+        config.autoUpdateCheckEnabled?.let {
+            settingsRepository.setAutoUpdateCheckEnabled(it)
+        }
+
         // Apply Kiosk Settings
         if (config.kioskEnabled) {
             settingsRepository.setKioskModeEnabled(true)
@@ -118,6 +160,15 @@ class PresetReceiver : BroadcastReceiver() {
                 settingsRepository.setKioskAppPackages(apps.toSet())
                 Log.d(TAG, "Kiosk apps set: $apps")
             }
+            config.kioskTitle?.let { settingsRepository.setKioskTitle(it) }
+            config.kioskBackgroundColor?.let { settingsRepository.setKioskBackgroundColor(it) }
+            config.kioskPrimaryColor?.let { settingsRepository.setKioskPrimaryColor(it) }
+            config.kioskShowUpdate?.let { settingsRepository.setShouldShowKioskSecureUpdate(it) }
+            config.kioskActionButtons?.let { settingsRepository.setKioskActionButtons(it) }
+            config.kioskLayoutJson?.let { settingsRepository.setKioskLayoutJson(it) }
+            config.kioskBlockedLauncherPackage?.let { settingsRepository.setKioskBlockedLauncherPackage(it) }
+            config.kioskSettingsInLockTaskEnabled?.let { settingsRepository.setKioskSettingsInLockTaskEnabled(it) }
+            config.kioskAppMonitorEnabled?.let { settingsRepository.setKioskAppMonitorEnabled(it) }
             
             // --- Kiosk Mode Activation (Fix) ---
             // 1. Set LockTask packages (allows us to pin screen)

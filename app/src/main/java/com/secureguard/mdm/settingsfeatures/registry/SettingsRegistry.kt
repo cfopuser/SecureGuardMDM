@@ -28,6 +28,7 @@ object SettingsRegistry {
         NavigateToChangePasswordSetting,
         ToggleUpdatesSetting,
         LockSettingsAction,
-        RemovalOptionsAction
+        RemovalOptionsAction,
+        ExportSettingsAction
     )
 }

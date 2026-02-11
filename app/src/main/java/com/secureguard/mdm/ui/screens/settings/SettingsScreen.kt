@@ -33,6 +33,7 @@ import com.secureguard.mdm.settingsfeatures.impl.NavigateToKioskModeSetting
 import com.secureguard.mdm.settingsfeatures.impl.LockSettingsAction
 import com.secureguard.mdm.settingsfeatures.impl.RemovalOptionsAction
 import com.secureguard.mdm.settingsfeatures.impl.UpdateChannelAction
+import com.secureguard.mdm.settingsfeatures.impl.ExportSettingsAction
 import com.secureguard.mdm.ui.components.InfoDialog
 import com.secureguard.mdm.ui.components.PasswordPromptDialog
 import com.secureguard.mdm.ui.screens.updatesettings.UpdateChannel
@@ -65,6 +66,12 @@ fun SettingsScreen(
         viewModel.onEvent(SettingsEvent.OnVpnPermissionResult(result.resultCode == Activity.RESULT_OK))
     }
 
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let { viewModel.onEvent(SettingsEvent.OnExportFileSelected(it)) }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.sideEffect.collectLatest { effect ->
             when (effect) {
@@ -74,7 +81,7 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.vpnPermissionRequestEvent.collectLatest {
+        viewModel.vpnPermissionRequestEvent.collectLatest { 
             val intent = VpnService.prepare(context)
             if (intent != null) vpnPermissionLauncher.launch(intent)
             else viewModel.onEvent(SettingsEvent.OnVpnPermissionResult(true))
@@ -91,9 +98,15 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.triggerUninstallEvent.collectLatest {
+        viewModel.triggerUninstallEvent.collectLatest { 
             val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:${context.packageName}"))
             context.startActivity(intent)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.createDocumentEvent.collectLatest {
+            createDocumentLauncher.launch("settings_preset.json") // Default filename
         }
     }
 
@@ -208,6 +221,7 @@ fun SettingsScreen(
                                 LockSettingsAction.id -> showLockConfirmationDialog = true
                                 RemovalOptionsAction.id -> viewModel.onEvent(SettingsEvent.OnActionSettingClicked(featureId))
                                 UpdateChannelAction.id -> showUpdateChannelDialog = true
+                                ExportSettingsAction.id -> viewModel.onEvent(SettingsEvent.OnActionSettingClicked(featureId))
                                 NavigateToKioskModeSetting.id -> {
                                     if (!itemModel.isSupported) {
                                         // Trigger unsupported dialog logic

@@ -1,0 +1,31 @@
+<resources>
+    <!-- Material 3 Kiosk Theme Colors (Dark Mode) -->
+    <color name="md_theme_primary">#E57373</color>
+    <color name="md_theme_onPrimary">#000000</color>
+    <color name="md_theme_primaryContainer">#31111D</color>
+    <color name="md_theme_onPrimaryContainer">#FFD8E4</color>
+    <color name="md_theme_secondary">#FFCDD2</color>
+    <color name="md_theme_onSecondary">#000000</color>
+    <color name="md_theme_secondaryContainer">#1D192B</color>
+    <color name="md_theme_onSecondaryContainer">#E8DEF8</color>
+    <color name="md_theme_tertiary">#EFB8C8</color>
+    <color name="md_theme_onTertiary">#492532</color>
+    <color name="md_theme_tertiaryContainer">#633B48</color>
+    <color name="md_theme_onTertiaryContainer">#FFD8E4</color>
+    <color name="md_theme_error">#F2B8B5</color>
+    <color name="md_theme_onError">#601410</color>
+    <color name="md_theme_errorContainer">#8C1D18</color>
+    <color name="md_theme_onErrorContainer">#F9DEDC</color>
+    <color name="md_theme_background">#121212</color>
+    <color name="md_theme_onBackground">#E0E0E0</color>
+    <color name="md_theme_surface">#1E1E1E</color>
+    <color name="md_theme_onSurface">#E0E0E0</color>
+    <color name="md_theme_surfaceVariant">#49454F</color>
+    <color name="md_theme_onSurfaceVariant">#CAC4D0</color>
+    <color name="md_theme_outline">#938F99</color>
+    <color name="md_theme_shadow">#000000</color>
+    <color name="md_theme_inverseSurface">#E0E0E0</color>
+    <color name="md_theme_inverseOnSurface">#121212</color>
+    <color name="md_theme_inversePrimary">#B71C1C</color>
+    <color name="md_theme_surfaceTint">#E57373</color>
+</resources>

@@ -1,5 +1,6 @@
 package com.secureguard.mdm.ui.screens.settings
 
+import android.net.Uri
 import com.secureguard.mdm.features.api.ProtectionFeature
 import com.secureguard.mdm.settingsfeatures.api.SettingCategory
 import com.secureguard.mdm.settingsfeatures.api.SettingsFeature
@@ -48,6 +49,7 @@ sealed class SettingsEvent {
     data class OnToggleSettingChanged(val settingId: String, val isChecked: Boolean) : SettingsEvent()
     data class OnActionSettingClicked(val settingId: String) : SettingsEvent()
     data class OnLockSettingsConfirmed(val allowManualUpdate: Boolean) : SettingsEvent()
+    data class OnExportFileSelected(val uri: Uri) : SettingsEvent()
 
     // Removal options dialog events
     object OnRegularRemovalSelected : SettingsEvent()

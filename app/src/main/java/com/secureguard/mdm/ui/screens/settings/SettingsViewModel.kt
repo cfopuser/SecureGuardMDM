@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
+import android.net.Uri
 import android.net.VpnService
 import android.os.Build
 import android.util.Log
@@ -26,14 +27,15 @@ import com.secureguard.mdm.settingsfeatures.api.SettingsFeature
 import com.secureguard.mdm.settingsfeatures.api.ToggleSetting
 import com.secureguard.mdm.settingsfeatures.impl.*
 import com.secureguard.mdm.settingsfeatures.registry.SettingsRegistry
+import com.secureguard.mdm.data.model.PresetConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.io.IOException
+import java.io.OutputStreamWriter
 import javax.inject.Inject
 
 
@@ -41,11 +43,14 @@ sealed class SettingsSideEffect {
     object NavigateBack : SettingsSideEffect()
 }
 
+import com.secureguard.mdm.data.local.PreferencesManager
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val passwordManager: PasswordManager,
+    private val preferencesManager: PreferencesManager,
     private val dpm: DevicePolicyManager
 ) : ViewModel() {
 
@@ -72,6 +77,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _triggerUninstallEvent = MutableSharedFlow<Unit>()
     val triggerUninstallEvent = _triggerUninstallEvent.asSharedFlow()
+
+    private val _createDocumentEvent = MutableSharedFlow<Unit>()
+    val createDocumentEvent = _createDocumentEvent.asSharedFlow()
 
     private val adminComponentName by lazy {
         SecureGuardDeviceAdminReceiver.getComponentName(context)
@@ -105,6 +113,7 @@ class SettingsViewModel @Inject constructor(
             is SettingsEvent.OnErrorDialogDismissed -> _errorDialogState.update { ErrorDialogState() }
             is SettingsEvent.OnSaveClick -> saveChanges()
             is SettingsEvent.OnSnackbarShown -> _uiState.update { it.copy(snackbarMessage = null) }
+            is SettingsEvent.OnExportFileSelected -> exportSettings(event.uri)
         }
     }
 
@@ -194,6 +203,11 @@ class SettingsViewModel @Inject constructor(
             RemovalOptionsAction.id -> {
                 _passwordPromptState.update { it.copy(isVisible = true) }
             }
+            ExportSettingsAction.id -> {
+                viewModelScope.launch {
+                    _createDocumentEvent.emit(Unit)
+                }
+            }
         }
     }
 
@@ -262,6 +276,71 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    private fun exportSettings(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val protectionFeatures = _uiState.value.protectionCategoryToggles.flatMap { it.toggles }.associate { it.feature.id to it.isEnabled }
+                val settings = _uiState.value.settingItemsByCategory.values.flatten().filter { it.feature is ToggleSetting }.associate { it.feature.id to it.isChecked }
+                val allFeatures = protectionFeatures + settings
+
+                // Fetch expanded settings
+                val blockedApps = settingsRepository.getBlockedAppPackages()
+                val suspendedApps = settingsRepository.getSuspendedAppPackages()
+                val frpIds = settingsRepository.getCustomFrpIds()
+                val savedChannel = preferencesManager.loadString(PreferencesManager.KEY_UPDATE_CHANNEL, "STABLE")
+                
+                // Fetch Kiosk settings
+                val kioskEnabled = settingsRepository.isKioskModeEnabled()
+                val kioskApps = settingsRepository.getKioskAppPackages().toList()
+                val kioskTitle = settingsRepository.getKioskTitle()
+                val kioskBackgroundColor = settingsRepository.getKioskBackgroundColor()
+                val kioskPrimaryColor = settingsRepository.getKioskPrimaryColor()
+                val kioskShowUpdate = settingsRepository.shouldShowKioskSecureUpdate()
+                val kioskActionButtons = settingsRepository.getKioskActionButtons()
+                val kioskLayoutJson = settingsRepository.getKioskLayoutJson()
+                val kioskBlockedLauncher = settingsRepository.getKioskBlockedLauncherPackage()
+                val kioskSettingsInLockTask = settingsRepository.isKioskSettingsInLockTaskEnabled()
+                val kioskAppMonitor = settingsRepository.isKioskAppMonitorEnabled()
+                val autoUpdateCheck = settingsRepository.isAutoUpdateCheckEnabled()
+
+                val config = PresetConfig(
+                    features = allFeatures,
+                    kioskEnabled = kioskEnabled,
+                    kioskApps = kioskApps.ifEmpty { null },
+                    kioskTitle = kioskTitle,
+                    kioskBackgroundColor = kioskBackgroundColor,
+                    kioskPrimaryColor = kioskPrimaryColor,
+                    kioskShowUpdate = kioskShowUpdate,
+                    kioskActionButtons = kioskActionButtons.ifEmpty { null },
+                    kioskLayoutJson = kioskLayoutJson,
+                    // New expanded fields
+                    blockedApps = blockedApps.ifEmpty { null },
+                    suspendedApps = suspendedApps.ifEmpty { null },
+                    customFrpIds = frpIds.ifEmpty { null },
+                    updateChannel = savedChannel,
+                    kioskBlockedLauncherPackage = kioskBlockedLauncher,
+                    kioskSettingsInLockTaskEnabled = kioskSettingsInLockTask,
+                    kioskAppMonitorEnabled = kioskAppMonitor,
+                    autoUpdateCheckEnabled = autoUpdateCheck
+                )
+                val jsonString = Json.encodeToString(config)
+
+                context.contentResolver.openOutputStream(uri)?.use {
+                    OutputStreamWriter(it).use { writer ->
+                        writer.write(jsonString)
+                    }
+                }
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_export_success)) }
+
+            } catch (e: IOException) {
+                Log.e("SettingsVM", "Failed to export settings", e)
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_export_error, e.message)) }
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "An unexpected error occurred during export", e)
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_export_error_unexpected)) }
+            }
+        }
+    }
 
     private fun lockSettings(allowManualUpdate: Boolean) {
         viewModelScope.launch {
