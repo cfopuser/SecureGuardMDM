@@ -36,14 +36,13 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.IOException
 import java.io.OutputStreamWriter
+import com.secureguard.mdm.data.local.PreferencesManager
 import javax.inject.Inject
 
 
 sealed class SettingsSideEffect {
     object NavigateBack : SettingsSideEffect()
 }
-
-import com.secureguard.mdm.data.local.PreferencesManager
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
